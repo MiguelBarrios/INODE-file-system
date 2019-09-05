@@ -1,6 +1,6 @@
 all:	project0 buildOne
 
-reset:	clean  buildTwo
+reset:	clean  all
 
 project0:	project0.c
 	gcc project0.c -o project0
@@ -13,3 +13,5 @@ buildTwo:	project0
 
 clean:
 	rm -f project0 *.o
+
+rbuild: clean all
