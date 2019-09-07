@@ -3,16 +3,11 @@
 
 int main(int argc, char *argv[])
 {
-    char * numbers[] = {"","one", "two", "three", "four", "five", "six" , "seven","eight", "nine",
-        "ten", "eleven", "twelve", "thirteen","fourteen", "fifteen", "sixteen", "seventeen", "eightteen", "nineteen", "twenty",
-        "thirty", "fourty", "fifty", "sixty", "seventy", "eighty", "ninty", "hundred", "thousand",
-        "million"};
+    char * tens[] = {"ten ", "twenty ", "thirty ", "fourty ", "fifty ", "sixty ", "seventy ", "eighty ", "ninty "};
+    char * ones[] = {"","one ", "two ", "three ", "four ", "five ", "six " , "seven ","eight ", "nine " };
+    char * hundredPlus[] = {"hundred ", "thousand ", "million "};
     
-    char * tens[] = {"ten", "twenty", "thirty", "fourty", "fifty", "sixty", "seventy", "eighty", "ninty"};
-    char * ones[] = {"","one", "two", "three", "four", "five", "six" , "seven","eight", "nine" };
-    char * hundredPlus[] = {"hundred", "thousand", "million"};
-    
-    if(argc == 1 || (*argv[1] == 117 && argc == 2))
+    if(argc == 1 || (argc == 2 && *argv[1] == 117))
     {
         
         char numberString[11];
@@ -20,6 +15,7 @@ int main(int argc, char *argv[])
         //end of file is simulated by pressing CTRL-d
         while(fgets(numberString,11,stdin))
         {
+            char ouputString[200];
             int firstNonZero = 0;
             for(int i = 0; i < strlen(numberString) - 1; ++i)
             {
@@ -41,44 +37,58 @@ int main(int argc, char *argv[])
                 inputNumber[offset] = currentNum;
             }
             
-            for(int index = 0; index < 9; ++index)
+            for(int index = firstNonZero; index < 9; ++index)
             {
                 int currentNumber = inputNumber[index];
-                if(inputNumber[index] != -1)
+                if(currentNumber != -1)
                 {
                     ////output hundred
-                    if((index == 0 || index == 3 || index == 6) && (inputNumber[index] != 0))
+                    if((index == 0 || index == 3 || index == 6) && (currentNumber != 0))
                     {
-                        printf("%s %s ",ones[inputNumber[index]], numbers[28]);
+                        strcat(ouputString, ones[currentNumber]);
+                        strcat(ouputString, hundredPlus[0]);
+
                     }
                     
                     //output tens
-                    if((index == 1 || index == 4 || index == 7) && (inputNumber[index] != 0))
+                    if((index == 1 || index == 4 || index == 7) && (currentNumber != 0))
                     {
-                        printf("%s ",tens[inputNumber[index] - 1]);
+                        strcat(ouputString, tens[currentNumber - 1]);
                     }
                     
                     //output one's
-                    if((index == 2 || index == 5 || index == 8) && (inputNumber[index] != 0))
+                    if((index == 2 || index == 5 || index == 8) && (currentNumber != 0))
                     {
-                        printf("%s ", ones[inputNumber[index]]);
+                        strcat(ouputString, ones[currentNumber]);
                     }
-                    
                     
                     //output milion
                     if(index == 2)
                     {
-                        printf("%s ",hundredPlus[2]);
+                        strcat(ouputString, hundredPlus[2]);
+
                     }
                     //output thousand
-                    if((index == 5) && (inputNumber[index] != -1 || inputNumber[index -1] != -1 || inputNumber[index -2] != -1))
+                    if((index == 5) && (currentNumber != -1 || inputNumber[index -1] != -1 || inputNumber[index -2] != -1))
                     {
-                        if(inputNumber[index] != 0 || inputNumber[index -1] != 0 || inputNumber[index -2] != 0)
-                            printf("%s ",hundredPlus[1]);
+                        if(currentNumber != 0 || inputNumber[index -1] != 0 || inputNumber[index -2] != 0)
+                            strcat(ouputString, hundredPlus[1]);
                     }
                     
                 }
             }
+            
+            if(argc == 2 && *argv[1] == 117)
+            {
+                for(int i = 0; i < strlen(ouputString) - 1; ++i)
+                {
+                    if(ouputString[i] != 32)
+                        ouputString[i] = ouputString[i] - 32;
+                }
+            }
+
+            printf("%s\n", ouputString);
+            
         }
     }
     else

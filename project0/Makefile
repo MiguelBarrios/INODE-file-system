@@ -9,7 +9,7 @@ buildOne:
 	./project0
 
 buildTwo:	project0
-	./project0 [u]
+	./project0 u
 
 clean:
 	rm -f project0 *.o
