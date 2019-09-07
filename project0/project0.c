@@ -3,8 +3,9 @@
 
 int main(int argc, char *argv[])
 {
-    char * tens[] = {"ten ", "twenty ", "thirty ", "fourty ", "fifty ", "sixty ", "seventy ", "eighty ", "ninty "};
     char * ones[] = {"","one ", "two ", "three ", "four ", "five ", "six " , "seven ","eight ", "nine " };
+    char * teens[] = {"ten ", "elleven ", "twelve ", "thirteen ", "fourteen ", "fifteen ", "sixteen ", "seventeen ", "eighteen ", "nineteen "};
+    char * tens[] = {"ten ", "twenty ", "thirty ", "forty ", "fifty ", "sixty ", "seventy ", "eighty ", "ninety "};
     char * hundredPlus[] = {"hundred ", "thousand ", "million "};
     
     if(argc == 1 || (argc == 2 && *argv[1] == 117))
@@ -16,6 +17,7 @@ int main(int argc, char *argv[])
         while(fgets(numberString,11,stdin))
         {
             char ouputString[200];
+            ouputString[0] = '\0';
             int firstNonZero = 0;
             for(int i = 0; i < strlen(numberString) - 1; ++i)
             {
@@ -47,26 +49,44 @@ int main(int argc, char *argv[])
                     {
                         strcat(ouputString, ones[currentNumber]);
                         strcat(ouputString, hundredPlus[0]);
-
+                        
                     }
-                    
+                
                     //output tens
+                    int isTeens = -1;
                     if((index == 1 || index == 4 || index == 7) && (currentNumber != 0))
                     {
-                        strcat(ouputString, tens[currentNumber - 1]);
+                        isTeens = currentNumber * 10 + inputNumber[index + 1];
+                        if(isTeens < 20 && isTeens >= 10)
+                        {
+                            strcat(ouputString, teens[isTeens % 10]);
+                        }
+                        else if(isTeens >= 20)
+                        {
+                            strcat(ouputString, tens[currentNumber - 1]);
+                            ++index;
+                            currentNumber = inputNumber[index];
+                            //output one's
+                            if((index == 2 || index == 5 || index == 8) && (currentNumber != 0))
+                            {
+                                strcat(ouputString, ones[currentNumber]);
+                            }
+                        }
                     }
-                    
-                    //output one's
-                    if((index == 2 || index == 5 || index == 8) && (currentNumber != 0))
+                    if(index == 8 || index == 5 || index == 2)
                     {
-                        strcat(ouputString, ones[currentNumber]);
+                        int sum = currentNumber + (((inputNumber[index - 1] != -1) ? inputNumber[index - 1] : 0) * 10);
+                        if(sum < 10 && sum != 0)
+                            strcat(ouputString, ones[sum]);
                     }
                     
+                    
+        
                     //output milion
                     if(index == 2)
                     {
                         strcat(ouputString, hundredPlus[2]);
-
+                        
                     }
                     //output thousand
                     if((index == 5) && (currentNumber != -1 || inputNumber[index -1] != -1 || inputNumber[index -2] != -1))
@@ -77,7 +97,7 @@ int main(int argc, char *argv[])
                     
                 }
             }
-            
+            //Transforms output string to upper case if u argument was imputed
             if(argc == 2 && *argv[1] == 117)
             {
                 for(int i = 0; i < strlen(ouputString) - 1; ++i)
@@ -86,9 +106,8 @@ int main(int argc, char *argv[])
                         ouputString[i] = ouputString[i] - 32;
                 }
             }
-
-            printf("%s\n", ouputString);
             
+            printf("%s\n", ouputString);
         }
     }
     else
@@ -96,6 +115,5 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Invalid  Argument\n");
         return -1;
     }
-    
     return 0;
 }
