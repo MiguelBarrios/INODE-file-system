@@ -14,4 +14,7 @@ buildTwo:	project0
 clean:
 	rm -f project0 *.o
 
+makeZip:
+	zip project0.zip *.c Makefile README.txt
+
 rbuild: clean all
