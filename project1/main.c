@@ -16,50 +16,64 @@ char integerToChar(void);
 char floatToChar(void);
 char hexToChar(void);
 void tokenize(char * input, char *command, int *location, char * value);
-char getCommand(char * input, char * buffer);
+char executeCommand(char * input, char * buffer);
 int getNumTokens(char * input);
-
+int isValidCommand(char * firstToken);
+const char SEPARATORS[] = " \t\n";         // Declare as a global constant
 
 int main(int argc, const char * argv[]) {
 
     char buffer[128];
-    char command;
-    int location = -1;
-    char value[128];
-    value[0] = '\0';
-
-
     zeroBuffer(buffer);
     printf("type..\n");
     
-    char inputString[129];
-    while(fgets(inputString, 129, stdin))
+    
+    
+    char in_buffer[128];                 // Input buffer from STDIN
+    char * args[10];                      // pointers to arg strings
+    char ** arg;                         // working pointer that steps through the args
+    while(fgets(in_buffer, 129, stdin))
     {
-        /*
-        command = getCommand(inputString, buffer);
-        printf("inputed: %c \n", command);
-        inputString[0] = '\0';
-         */
+        arg = args;
+        *arg++ = strtok(in_buffer,SEPARATORS);   // tokenize input
+        while ((*arg++ = strtok(NULL,SEPARATORS)));
+        
+        
+        
+        if(isValidCommand(args[0]) != 0)
+        {
+            printf("Valid command inputed\n");
+        }
+        else
+        {
+            printf("invalid command");
+        }
+        
+        
     }
     
     return 0;
 }
 
-int getNumTokens(char * input)
+int isValidCommand(char * firstToken)
 {
-    int numTokens = 0;
-    for(int i = 0; i < (int)strlen(input) - 1; ++i)
+    if((int)strlen(firstToken) == 1)
     {
-        if(input[i] == 32)
-            ++numTokens;
+        char c = firstToken[0];
+        if(c == 'z' || c == 'b' || c == 'B' ||  c == 'h' || c == 'H'
+           || c == 'i' || c == 'I' || c == 'f' || c == 'F' || c == 's'
+           || c == 'S' || c == 'w' || c == 'r')
+        {
+            return 1;
+        }
     }
-    return numTokens;
+    
+    return 0;  //invalid command
 }
 
-char getCommand(char * input, char * buffer)
+char executeCommand(char * input, char * buffer)
 {
     char c = input[0];
-    int numTokens = getNumTokens(input);
     
     if(c == 'l')
         list(buffer);
@@ -124,16 +138,3 @@ void zeroBuffer(char * buffer)
         buffer[i] = '0';
     }
 }
-
-
-
-/* 16 x 8
-00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-00 00 00 00 00 00 00 00 00 00 43 00 00 00 00 00
-00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-*/
