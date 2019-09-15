@@ -10,6 +10,7 @@ typedef struct
   int fd;
 } STORAGE;
 
+
 STORAGE * init_storage(char * name);
 int close_storage(STORAGE *storage);
 int get_bytes(STORAGE *storage, unsigned char *buf, int location, int len);
