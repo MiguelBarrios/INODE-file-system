@@ -1,51 +1,58 @@
-//
-//  main.c
+//  Miguel A Barrios Davila
 //  project1
 //
-//  Created by Miguel Barrios on 9/11/19.
-//  Copyright © 2019 Miguel Barrios. All rights reserved.
-//
-
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 #include "storage.h"
+//silence pointer warning,   from float to int conversion
+#pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
 
-int writeByte(int location, char * value);
-int writeHexadecimal(int location, char * value);
-void writeInteger(int location, char * value);
-int writeFloat(int location, char * value);
-int writeString(int location, char * value);
-
-void readByte(int location);
-void readHexadecimal(int location);
-void readInteger(int location);
-void readFloat(int location);
-void readString(int location);
-
-int getIntegerValueOf(char * value);
-void zeroBuffer(void);
 void list(void);
-int isValidCommand(char * command, int numArgs);
-char * toHex(char c);
-int toDecimal(char * c);
+void zeroBuffer(void);
+void writeToFile(int offset, int len, STORAGE *storage);
+void readFromFile(int offset, int len, STORAGE *storage);
 
+void writeHexadecimal(int location, char * value);
+void writeInteger(int location, int intValue);
+void writeFloat(char * location, char * numberString);
+void writeString(int location, char * value);
+void writeByte(int location, int value); //b
+void writeChar(int location, char * value);
+
+void readInteger(int location);//32 bit
+void readFloat(int location);  //IEEE
+void readString(int location);
+void readHexadecimal(int location);
+void readChar(int location);
+void readByte(int location);
+
+int hasCorrectNumArgs(char * command, int numArgs);
+void printByteToHex(char c);
+int integerValue(char * location);
+float calculateMantissa(int ieeeRepresentation);
+int convertHex(char c);
 int hexToInt(char * value);
-int getLocation(char * location);
 
+#define BUFF_SIZE 128
+#define INTEGER_MAX 2147483647
+#define INT_OFFSET 48
+#define FIRST8BITS 255
+#define LEADINGBIT 128
 
-//Global Variables
-unsigned char BUFFER[128];
+unsigned char *BUFFER;
 const char SEPARATORS[] = " \t\n";
-const char HEXADECIMAL[] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f', '\0'};
-const char DECIMAL[] = {'0','1','2','3','4','5','6','7','8','9', '\0'};
+const char HEXADECIMAL[] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f','\0'};
 
 int main(int argc, const char * argv[]) {
     
+    STORAGE *storage = init_storage("storage.bin");
+    BUFFER = malloc(BUFF_SIZE * sizeof(BUFFER));
     zeroBuffer();
     
-    char in_buffer[128];                 // Input buffer from STDIN
-    char * args[10];                     // pointers to arg strings
-    char ** arg;                         // working pointer that steps through the args
+    char in_buffer[BUFF_SIZE];                  // Input buffer from STDIN
+    char * args[10];                            // pointers to arg strings
+    char ** arg;                                // working pointer that steps through the args
     
     while(fgets(in_buffer, 129, stdin))
     {
@@ -56,7 +63,7 @@ int main(int argc, const char * argv[]) {
         int numberOfArguments = 0;
         for(int i = 0;i < 4 && args[i] != NULL; ++i, ++numberOfArguments){} //gets number of arguments
         
-        if(numberOfArguments <= 3 && isValidCommand(args[0], numberOfArguments) != -1)
+        if(numberOfArguments <= 3 && hasCorrectNumArgs(args[0], numberOfArguments) != -1)
         {
             char commmand = args[0][0];
             switch (commmand)
@@ -65,28 +72,34 @@ int main(int argc, const char * argv[]) {
                     break;
                 case 'z': zeroBuffer();
                     break;
-                case 'b': writeByte(getLocation(args[1]), args[2]);  //TODO:  Check for errors when a value greater than 1 char is inputed
+                case 'b': writeByte(integerValue(args[1]), integerValue(args[2]));
                     break;
-                case 'h': writeHexadecimal(getLocation(args[1]), args[2]);      //Implement
+                case 'h': writeHexadecimal(integerValue(args[1]), args[2]);
                     break;
-                case 'i': writeInteger(getLocation(args[1]), args[2]);
+                case 'i': writeInteger(integerValue(args[1]), integerValue(args[2]));
                     break;
-                case 'f': writeFloat(getLocation(args[1]), args[2]);            //Implement
+                case 'f': writeFloat(args[1], args[2]);
                     break;
-                case 's': writeString(getLocation(args[1]), args[2]);           //Implement
+                case 's': writeString(integerValue(args[1]), args[2]);
                     break;
-                case 'B': readByte(getLocation(args[1]));
+                case 'c': writeChar(integerValue(args[1]), args[2]);
                     break;
-                case 'H': readHexadecimal(getLocation(args[1]));
+                case 'B': readByte(integerValue(args[1]));
                     break;
-                case 'I': readInteger(getLocation(args[1]));
+                case 'H': readHexadecimal(integerValue(args[1]));
                     break;
-                case 'F': readFloat(getLocation(args[1]));                      //Implement
+                case 'I': readInteger(integerValue(args[1]));
                     break;
-                case 'S': readString(getLocation(args[1]));                     //Implement
+                case 'F': readFloat(integerValue(args[1]));
                     break;
-                    //Write offset cmd w
-                    //read part of the file into buffer cmd r
+                case 'S': readString(integerValue(args[1]));
+                    break;
+                case 'C': readChar(integerValue(args[1]));
+                    break;
+                case 'w': writeToFile(integerValue(args[1]), integerValue(args[2]), storage);
+                    break;
+                case 'r': readFromFile(integerValue(args[1]), integerValue(args[2]), storage);
+                    break;
             }
         }
         else
@@ -94,194 +107,115 @@ int main(int argc, const char * argv[]) {
             fprintf(stderr, "Invalid  Argument\n");
         }
     }
+    //close_storage(storage);    TODO: check to see if we have to close at the end of program
     return 0;
 }
 
-//-----------------------------------------Completed and Working----------------------------------------
-
-void list() //l
+void readFromFile(int offset, int len, STORAGE *storage)
 {
-    for(int index = 0; index < 128; index += 16)
-    {
-        for(int i = index; i < index + 16; ++i)
-        {
-            printf("%s ", toHex(BUFFER[i]));
-        }
-        printf("\n");
-    }
+    get_bytes(storage, BUFFER, offset, len);
 }
 
-void zeroBuffer() // z
+void writeToFile(int offset, int len, STORAGE *storage)
 {
-    for(int i = 0; i < 128; ++i)
-    {
-        BUFFER[i] = 0;
-    }
+    put_bytes(storage, BUFFER, offset, len);
 }
 
-char * toHex(char c)
-{
-    char one = HEXADECIMAL[c / 16];
-    char two = HEXADECIMAL[c % 16];
-    
-    char * output = malloc(3);
-    output[0] = one;
-    output[1] = two;
-    return output;
-}
-
-int isValidCommand(char * command, int numArgs)
+int hasCorrectNumArgs(char * command, int numArgs)
 {
     if(command == NULL)
         return -1;
-    
     
     int tokenSize = (int)strlen(command);
     if(tokenSize == 1)
     {
         char c = command[0];
         if(numArgs == 1 && (c == 'l' || c == 'z') )
-        {
             return 1;
-        }
-        else if(numArgs == 2 && (c == 'B' || c == 'H' || c == 'I' || c == 'F' || c == 'S'))
-        {
+        else if(numArgs == 2 && (c == 'C' ||c == 'B' || c == 'H' || c == 'I' || c == 'F' || c == 'S'))
             return 1;
-        }
-        else if(numArgs == 3 && (c == 'b' || c == 'h' || c == 'i' || c == 'f' || c == 's' || c == 'w' || c == 'r'))
-        {
+        else if(numArgs == 3 && (c == 'c' ||c == 'b' || c == 'h' || c == 'i' || c == 'f' || c == 's' || c == 'w' || c == 'r'))
             return 1;
-        }
     }
     return -1;  //invalid command
 }
 
-//get's correct index from loc argument
-int getLocation(char * location)
+void list()
 {
-    int size = (int)strlen(location);
-    int index = -1;
-    
-    if(size == 3)
-        index = (100 * (location[0] % 48)) + ((location[1] * 10)  % 48) + (location[2] % 48);
-    else if(size == 2)
-        index = ((location[0] * 10)  % 48) + (location[1] % 48);
-    else if(size == 1)
-        index = location[0] % 48;
-    
+    for(int index = 0; index < BUFF_SIZE; index += 16)
+    {
+        for(int i = index; i < index + 16; ++i)
+            printByteToHex(BUFFER[i]);
+        printf("\n");
+    }
+}
+
+void printByteToHex(char c)
+{
+    int value = c;
+    int left = value & 15;
+    int right = (value >>4) & 15;
+    printf("%c%c ", HEXADECIMAL[right], HEXADECIMAL[left]);
+}
+
+void zeroBuffer() // z
+{
+    for(int i = 0; i < BUFF_SIZE; ++i)
+        BUFFER[i] = 0;
+}
+
+void writeByte(int index, int value)
+{
+    BUFFER[index] = value;
+}
+
+//get's correct index from loc argument
+int integerValue(char * location)
+{
+    int index;
+    sscanf(location, "%d", &index);
     return index;
 }
 
-//TODO:  Check for errors when a value greater than 1 char is inputed
-int writeByte(int location, char * value) //b
+void writeHexadecimal(int location, char * value)
 {
-    int intValue = getIntegerValueOf(value);
-    if(location >= 0 && location < 128)
+    int size = (int)strlen(value);
+    int number = 0;
+    
+    if(size == 2)
     {
-        BUFFER[location] = intValue;
-        return 1;
+        number = convertHex(value[0]);
+        number = number <<4;
+        number = number | convertHex(value[1]);
     }
-    return 0;
-}
-
-//works, CHECK to see if output is suppose to be char, dec or hex
-void readByte(int location) //B
-{
-    printf("%d\n", BUFFER[location]);
-}
-
-int getIntegerValueOf(char * value)
-{
-    int output = 0;
-    for(int i = (int)strlen(value) - 1, power10 = 10; i >= 0; --i)
-    {
-        int cur = value[i] - 48;
-        if(i < (int)strlen(value) - 1)
-        {
-            cur = cur * power10;
-            power10 *= 10;
-        }
-        output += cur;
+    else{
+        number = convertHex(value[0]);
     }
     
-    return output;
-}
-
-void writeInteger(int location, char * value)
-{
-    int intValue = getIntegerValueOf(value);
-    
-    if(intValue == 0)
-    {
-        BUFFER[location] = 0;
-    }
-    
-    while(intValue > 0)
-    {
-        int curByte = intValue & 255;
-        intValue = intValue >>8;
-        
-        char c = curByte;
-        BUFFER[location] = c;
-        ++location;
-    }
-}
-
-void readInteger(int location)
-{
-    int value = BUFFER[location];
-    for(int i = location + 1; BUFFER[i] != 0 && i < 128; ++i)
-    {
-        int cur = BUFFER[i] <<8;
-        value = value | cur;
-    }
-    printf("%d\n", value);
+    BUFFER[location] = number;
 }
 
 void readHexadecimal(int location)
 {
-    char c = BUFFER[location];
-    char one = HEXADECIMAL[c / 16];
-    char two = HEXADECIMAL[c % 16];
+    int number = BUFFER[location];
+    int first4Bits = number & 15;
+    int last4Bits = number >>4;
     
-    if(one != '0')
-        printf("%c", one);
-    
-    printf("%c\n", two);
-}
-
-int writeHexadecimal(int location, char * value)
-{
-    int intValue = hexToInt(value);
-    //////////Duplicatae code from write int merge later
-    if(intValue == 0)
-    {
-        BUFFER[location] = 0;
-    }
-    
-    while(intValue > 0)
-    {
-        int curByte = intValue & 255;
-        intValue = intValue >>8;
-        
-        char c = curByte;
-        BUFFER[location] = c;
-        ++location;
-    }
-    //////////////
-    return 1;
+    if(last4Bits != 0)
+        printf("%c%c\n", HEXADECIMAL[last4Bits], HEXADECIMAL[first4Bits]);
+    else
+        printf("%c\n", HEXADECIMAL[first4Bits]);
 }
 
 int hexToInt(char * value)
 {
-    int intOffset = 48;
     int charOffset = 40;
     int shift = 4;
     int intValue = 0;
     
     for(int index = (int)strlen(value) - 1; index >= 0; --index)
     {
-        int currValue = value[index] - intOffset;
+        int currValue = value[index] - INT_OFFSET;
         if(currValue > 9)
             currValue -= charOffset;
         
@@ -299,37 +233,131 @@ int hexToInt(char * value)
     return intValue;
 }
 
-//------------------------------------inProgress-----------------------------------------------------------
-
-
-
-
-
-
-
-//-------------------------------------Need to be implemented-------------------------------------------
-
-void readString(int location)
+int convertHex(char c)
 {
+    int value = c - INT_OFFSET;
+    if(value > 9)
+    {
+        if(c == 'A' || c == 'a')
+            value = 10;
+        else if(c == 'B' || c == 'b')
+            value = 11;
+        else if(c == 'C' || c == 'c')
+            value = 12;
+        else if(c == 'D' || c == 'd')
+            value = 13;
+        else if(c == 'E' || c == 'e')
+            value = 14;
+        else if(c == 'F' || c == 'f')
+            value = 15;
+    }
+    return value;
+}
+
+void writeInteger(int location, int intValue)
+{
+    BUFFER[location] = intValue & FIRST8BITS;              //byteOne
+    BUFFER[location + 1] = (intValue >>8) & FIRST8BITS;    //byteTwo
+    BUFFER[location + 2] = (intValue >>16) & FIRST8BITS;   //byteThree
+    BUFFER[location + 3] = (intValue >>24) & FIRST8BITS;   //bytefour
+}
+void readInteger(int location)
+{
+    int byteOne = BUFFER[location];
+    int byteTwo = BUFFER[location +1];
+    int byteThree = BUFFER[location + 2];
+    int byteFour = BUFFER[location + 3];
     
+    int outputNumber = byteOne | (byteTwo <<8) | (byteThree <<16) | (byteFour <<24);
+    
+    if((byteFour & LEADINGBIT) == LEADINGBIT)
+        outputNumber = (outputNumber & INTEGER_MAX) - 2147483648;
+    
+    printf("%d\n", outputNumber);
+}
+
+//Add Case for when user enters a whole number without a deimal
+void writeFloat(char * location, char * numberString)
+{
+    int index = integerValue(location);
+    float number;
+    
+    sscanf(numberString, "%f", &number);
+    
+    //How to get bits of a floating point number
+    //https://stackoverflow.com/questions/1697425/how-to-print-out-each-bit-of-a-floating-point-number
+    int *integerValueOfNumber;
+    integerValueOfNumber = &number;
+    int IEErep = *integerValueOfNumber;  //integer containing IEE Representation of float inputed
+    
+    writeInteger(index, IEErep);
 }
 
 void readFloat(int location)
 {
+    int byteOne = BUFFER[location];
+    int byteTwo = BUFFER[location +1];
+    int byteThree = BUFFER[location + 2];
+    int byteFour = BUFFER[location + 3];
     
+    int IEEENumRepresentation = byteOne | (byteTwo <<8) | (byteThree <<16) | (byteFour <<24);
+    
+    int exponentialBias = 127;
+    float mantissa = calculateMantissa(IEEENumRepresentation);
+    int exponentBits = 2139095040;
+    int exponent = ((IEEENumRepresentation & exponentBits) >>23) - exponentialBias;  //turns of all but exponent bits, subtract Bias
+    float number = (1 + mantissa) * pow(2, exponent);
+    
+    int isNegative = ((byteFour & LEADINGBIT) == LEADINGBIT) ? 1 : 0;
+    if(isNegative)
+        number *= -1;
+    
+    printf("%f\n", number);
 }
 
-int writeFloat(int location, char * valu)
+float calculateMantissa(int ieeeRepresentation)
 {
-    return -1;
-}
-
-int writeString(int location, char * value)
-{
-    for(int i = 0; i < (int)strlen(value); ++i)
+    int stream = ieeeRepresentation & 8388607;  //turns off all but last 23 bits
+    float mantissa = 0;
+    //For each bit in mantissa, calulate turn on bits to correct power of 2
+    for(int i = 0, power = -23; i < 23; ++i, ++power, stream = stream >>1)
     {
-        BUFFER[location + i] = value[i];
+        if((stream & 1) == 1)
+            mantissa += pow(2, power);
     }
-    return -1;
+    
+    return mantissa;
+}
+
+void writeString(int location, char * value)
+{
+    for(int i = 0; i <= (int)strlen(value); ++i)
+        BUFFER[location + i] = value[i];
+}
+
+void readString(int location)
+{
+    for(int i = location; i < BUFF_SIZE && BUFFER[i] != 0; ++i)
+    {
+        char c = BUFFER[i];
+        printf("%c", c);
+    }
+    printf("\n");
+}
+
+void writeChar(int location, char * value)
+{
+    BUFFER[location] = value[0];
+}
+
+void readChar(int location)
+{
+    printf("%c\n",BUFFER[location]);
+}
+
+//works, CHECK to see if output is suppose to be char, dec or hex
+void readByte(int location) //B
+{
+    printf("%d\n", BUFFER[location]);
 }
 

@@ -1,3 +1,5 @@
+    //Miguel A Barrios Davila   Project 0
+
 #include <stdio.h>
 #include <string.h>
 
@@ -31,13 +33,27 @@ int main(int argc, char *argv[])
             if(firstNonZeroIndex != -1)
             {
                 int inputNumber[] = {-1, -1, -1, -1, -1, -1, -1, -1, -1};
-                int offset = 9 - (length - firstNonZeroIndex);
-                
-                //converts string to int array with correct number
-                for(int i = firstNonZeroIndex, j = offset; i < length; ++i, ++j)
+                int invalidChar = 0;
+                //check for invalid characters
+                for(int i = 0; i < length; ++i)
                 {
-                    inputNumber[j] = numberString[i] % 48;
+                    int value = numberString[i];
+                    if(value < 48 || value > 57)
+                    {
+                        ++invalidChar;
+                    }
+                }
                 
+                int offset = 9 - (length - firstNonZeroIndex) + invalidChar;
+
+                //converts string to int array with correct number
+                for(int i = firstNonZeroIndex, j = offset; i < length; ++i)
+                {
+                    if(numberString[i] >= 48 && numberString[i] <= 57)
+                    {
+                        inputNumber[j] = numberString[i] % 48;
+                        ++j;
+                    }
                 }
                 
                 for(int index = offset; index < 9; ++index)
@@ -50,7 +66,7 @@ int main(int argc, char *argv[])
                         strcat(ouputString, powerTen[0]);
                     }
                     
-                    //output tens
+                    //appends tens
                     int isTeens = -1;
                     if((index == 1 || index == 4 || index == 7) && (currentNumber != 0))
                     {
@@ -71,6 +87,7 @@ int main(int argc, char *argv[])
                             }
                         }
                     }
+                    //appends one's
                     if((index == 8 || index == 5 || index == 2 ) && (currentNumber != 0))
                     {
                         int sum = currentNumber + (((inputNumber[index - 1] != -1) ? inputNumber[index - 1] : 0) * 10);
@@ -91,7 +108,6 @@ int main(int argc, char *argv[])
                             strcat(ouputString, powerTen[1]);
                     }
                     
-                    
                 }
                 //Transforms output string to upper case if u argument was imputed
                 if(argc == 2 && *argv[1] == 117)
@@ -102,11 +118,8 @@ int main(int argc, char *argv[])
                             ouputString[i] = ouputString[i] - 32;
                     }
                 }
-                
                 printf("%s\n", ouputString);
             }
-            
-
         }
     }
     else
