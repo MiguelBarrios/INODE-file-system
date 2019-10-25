@@ -85,6 +85,7 @@ typedef struct data_block_s
 
 /**********************************************************************/
 // Inode Types
+//UNALLOCATED_INODE: refers to an inode that does not exist
 typedef enum {UNUSED_TYPE=0, DIRECTORY_TYPE, FILE_TYPE} INODE_TYPE;
 
 // Single inode
@@ -94,6 +95,9 @@ typedef struct inode_s
   INODE_TYPE type;
 
   // Number of directory references to this inode
+  //inodes that correspond to directories, n_references will always be 1
+  /*inodes that correspond to files, this value can be any positive number. 
+  However, when a file is first created, this count will be 1 (more on this in project 4)*/
   unsigned char n_references;
 
   // Contents.  UNALLOCATED_BLOCK means that this entry is not used
@@ -108,7 +112,7 @@ typedef struct inode_s
 #define N_INODES_PER_BLOCK ((int)(DATA_BLOCK_SIZE/sizeof(INODE)))
 
 // Total number of inodes in the file system
-#define N_INODES (N_INODES_PER_BLOCK * N_INODE_BLOCKS)
+#define N_INODES (((N_INODES_PER_BLOCK * N_INODE_BLOCKS)>>3)<<3)
 
 // Block of inodes
 typedef struct inode_block_s

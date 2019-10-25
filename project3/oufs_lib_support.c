@@ -24,7 +24,7 @@ extern int debug;
  * @param master_block Pointer to a loaded master block.  Changes to the MB will
  *           be made here, but not written to disk
  *
- * @param block_reference Reference to the block that is being deallocated
+ * @param block_reference Reference to the block that is being deallocated, index for a block
  *
  */
 int oufs_deallocate_block(BLOCK *master_block, BLOCK_REFERENCE block_reference)
@@ -59,7 +59,7 @@ int oufs_deallocate_block(BLOCK *master_block, BLOCK_REFERENCE block_reference)
 };
 
 
-/**
+/**                     TODO:
  *  Initialize an inode and a directory block structure as a new directory.
  *  - Inode points to directory block (self_block_reference)
  *  - Inode size = 2 (for . and ..)
@@ -77,7 +77,12 @@ void oufs_init_directory_structures(INODE *inode, BLOCK *block,
 				    INODE_REFERENCE self_inode_reference,
 				    INODE_REFERENCE parent_inode_reference)
 {
-  // TODO
+    //Initialize root directory inode
+    oufs_set_inode(inode, DIRECTORY_TYPE, 1, self_block_reference, 1);
+
+    block.content.directory.entry[0].name = "ROOT";
+    block.content.directory.entry[0].inode_reference = self_inode_reference;  //REFERENT TO ROOT INODE
+    
 }
 
 
@@ -261,7 +266,15 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
 
 int oufs_find_open_bit(unsigned char value)
 {
+  int compare = 128; // 1000 0000
   // TODO
+  for(int i = 7; i >= 0; --i)
+  {
+      if((value & compare) == compare)
+        return i;
+
+      compare = compare >>1;
+  }
 
   // Not found
   return(-1);
