@@ -24,7 +24,7 @@ extern int debug;
  * @param master_block Pointer to a loaded master block.  Changes to the MB will
  *           be made here, but not written to disk
  *
- * @param block_reference Reference to the block that is being deallocated, index for a block
+ * @param block_reference Reference to the block that is being deallocated
  *
  */
 int oufs_deallocate_block(BLOCK *master_block, BLOCK_REFERENCE block_reference)
@@ -59,7 +59,7 @@ int oufs_deallocate_block(BLOCK *master_block, BLOCK_REFERENCE block_reference)
 };
 
 
-/**                     TODO:
+/**
  *  Initialize an inode and a directory block structure as a new directory.
  *  - Inode points to directory block (self_block_reference)
  *  - Inode size = 2 (for . and ..)
@@ -71,18 +71,36 @@ int oufs_deallocate_block(BLOCK *master_block, BLOCK_REFERENCE block_reference)
  * @param self_block_reference The block reference to the new directory block
  * @param self_inode_reference The inode reference to the new inode
  * @param parent_inode_reference The inode reference to the parent inode
- */
+ */ //calling method
 void oufs_init_directory_structures(INODE *inode, BLOCK *block,
 				    BLOCK_REFERENCE self_block_reference,
 				    INODE_REFERENCE self_inode_reference,
 				    INODE_REFERENCE parent_inode_reference)
 {
+    // TODO
     //Initialize root directory inode
-    oufs_set_inode(inode, DIRECTORY_TYPE, 1, self_block_reference, 1);
-
-    block.content.directory.entry[0].name = "ROOT";
-    block.content.directory.entry[0].inode_reference = self_inode_reference;  //REFERENT TO ROOT INODE
+    oufs_set_inode(inode, DIRECTORY_TYPE, 1, self_block_reference, 2);  
     
+
+    BLOCK dirBlock;
+    dirBlock.next_block = UNALLOCATED_BLOCK;
+    dirBlock.content.directory.entry[0].inode_reference = 0;
+    strcpy(dirBlock.content.directory.entry[0].name, ".\0");
+
+    dirBlock.content.directory.entry[1].inode_reference = ROOT_DIRECTORY_INODE;
+    strcpy(dirBlock.content.directory.entry[1].name, "..\0");
+
+    for(int i = 2; i < N_DIRECTORY_ENTRIES_PER_BLOCK; ++i)
+    {
+      dirBlock.content.directory.entry[i].inode_reference = UNALLOCATED_INODE;
+    }
+
+
+    BLOCK_REFERENCE ref = 5;
+    if(virtual_disk_write_block(ref, &dirBlock)  == -1){
+      fprintf(stderr, "Write to block error: oufs_lib_support -> oufs_init_directory_structures\n");
+    }
+
 }
 
 
@@ -131,7 +149,22 @@ int oufs_write_inode_by_reference(INODE_REFERENCE i, INODE *inode)
   if(debug)
     fprintf(stderr, "\tDEBUG: Writing inode %d\n", i);
 
-  // TODO
+  //TODO
+  //get block, where inode is housed
+  BLOCK_REFERENCE blockIndex = (unsigned short)(i / 32) + 1;
+  BLOCK block;
+  if(virtual_disk_read_block(blockIndex,&block) == -1){
+    fprintf(stderr, "Read block error: oufsLibSupport -> oufs_write_inode_by_reference\n");
+  }
+
+  //write inode to block   .. check to see if correct
+  unsigned short arrayIndex = i % 32;
+  block.content.inodes.inode[arrayIndex] = *inode;
+
+  //write block to disk
+  if(virtual_disk_write_block(blockIndex, &block) == -1){
+    fprintf(stderr, "write to block error oufsLibSupport -> oufs_write_inode_by_reference\n");
+  }
 
   // Success
   return(0);
@@ -175,6 +208,7 @@ int oufs_find_directory_element(INODE *inode, char *element_name)
     fprintf(stderr,"\tDEBUG: oufs_find_directory_element: %s\n", element_name);
 
   // TODO
+  return -1;
 }
 
 /**
@@ -266,6 +300,7 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
 
 int oufs_find_open_bit(unsigned char value)
 {
+  // TODO
   int compare = 128; // 1000 0000
   // TODO
   for(int i = 7; i >= 0; --i)
@@ -275,7 +310,6 @@ int oufs_find_open_bit(unsigned char value)
 
       compare = compare >>1;
   }
-
   // Not found
   return(-1);
 }
@@ -299,4 +333,5 @@ int oufs_allocate_new_directory(INODE_REFERENCE parent_reference)
   }
 
   // TODO
+  return -1;
 };

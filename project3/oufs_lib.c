@@ -101,10 +101,19 @@ int oufs_format_disk(char  *virtual_disk_name, char *pipe_name_base)
   //////////////////////////////
   // Master block
   block.next_block = UNALLOCATED_BLOCK;
-  block.content.master.inode_allocated_flag[0] = 0x80;
+  block.content.master.inode_allocated_flag[0] = 0x80;  //all other inodes free
 
   // TODO:  complete implementation
-  
+  BLOCK_REFERENCE front = 6;
+  BLOCK_REFERENCE end = 127;
+  block.content.master.unallocated_front = front; //first free block after inode blocks
+  block.content.master.unallocated_end = end; //last blockmake
+
+  //writing master block to disk
+  if(virtual_disk_write_block(MASTER_BLOCK_REFERENCE, &block) == -1){
+    fprintf(stderr, "writing master block to disk error: oufs_lib -> oufs_format_disk\n");
+  }
+
   //////////////////////////////
   // Root directory inode / block
   INODE inode;
@@ -112,16 +121,34 @@ int oufs_format_disk(char  *virtual_disk_name, char *pipe_name_base)
 				 ROOT_DIRECTORY_INODE, ROOT_DIRECTORY_INODE);
 
   // Write the results to the disk
-  if(oufs_write_inode_by_reference(0, &inode) != 0) {
-    return(-3);
+  INODE_REFERENCE ref = 0;
+  if(oufs_write_inode_by_reference(ref, &inode) != 0) {
+    return(-3);  fprintf(stderr, "Write inode by refferenced failed: oufs_lib\n");
   }
 
   // TODO: complete implementation
-    
-  //////////////////////////////
-  // All other blocks are free blocks
+  //make inode
 
-  // TODO: complete
+
+
+  // All other blocks are free blocks
+  //link remaining block
+  BLOCK link;
+  for(BLOCK_REFERENCE cur = 6, next = 7; cur < 127; ++next, ++cur)
+  {
+      link.next_block = next;
+      
+      //write block to disk
+      if(virtual_disk_write_block(cur, &link) == -1){
+        fprintf(stderr, "write to block error\n");
+  }
+    //writing last block to disk
+  link.next_block = UNALLOCATED_BLOCK;
+  if(virtual_disk_write_block(127, &block) == -1){
+    fprintf(stderr, "writing last block to disk error\n");
+  }
+
+  }
 
   
   // Done
@@ -151,6 +178,7 @@ static int inode_compare_to(const void *d1, const void *d2)
   // TODO: complete implementation
 
 
+  return 1; //Temp fix lator
 }
 
 
@@ -181,23 +209,24 @@ int oufs_list(char *cwd, char *path)
   int ret = oufs_find_file(cwd, path, &parent, &child, NULL);
 
   // Did we find the specified file?
-  if(ret == 0 && child != UNALLOCATED_INODE) {
+  if(ret == 0 && child != UNALLOCATED_INODE)
+  {
     // Element found: read the inode
     INODE inode;
-    if(oufs_read_inode_by_reference(child, &inode) != 0) {
+    if(oufs_read_inode_by_reference(child, &inode) != 0) 
       return(-1);
-    }
+
     if(debug)
       fprintf(stderr, "\tDEBUG: Child found (type=%s).\n",  INODE_TYPE_NAME[inode.type]);
 
     // TODO: complete implementation
 
-    }
   }else {
     // Did not find the specified file/directory
     fprintf(stderr, "Not found\n");
-    if(debug)
+    if(debug){
       fprintf(stderr, "\tDEBUG: (%d)\n", ret);
+    }
   }
   // Done: return the status from the search
   return(ret);
@@ -238,7 +267,7 @@ int oufs_mkdir(char *cwd, char *path)
   };
 
   // TODO: complete implementation
-
+  return (-1);  
 }
 
 /**

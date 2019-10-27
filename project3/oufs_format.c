@@ -12,7 +12,6 @@ int main(int argc, char **argv)
 
   // Format the disk
   oufs_format_disk(disk_name, pipe_name_base);
-
   return(0);
 
 }
