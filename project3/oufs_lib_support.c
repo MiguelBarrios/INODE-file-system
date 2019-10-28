@@ -78,12 +78,14 @@ void oufs_init_directory_structures(INODE *inode, BLOCK *block,
 				    INODE_REFERENCE parent_inode_reference)
 {
 
-    //TRY TO IMPLEMENT USING THE oufs_allocate_new_directory
     memset(block, 0, BLOCK_SIZE);  //RESET BLOCK
 
     // TODO
     //Initialize root directory inode
-    oufs_set_inode(inode, DIRECTORY_TYPE, 1, self_block_reference, 2);  
+    oufs_set_inode(inode, DIRECTORY_TYPE, 1, self_block_reference, 2); 
+
+    
+    //------initialize Root Directory --------
     
     block -> next_block = UNALLOCATED_BLOCK;
     block -> content.directory.entry[0].inode_reference = self_inode_reference;
@@ -91,8 +93,7 @@ void oufs_init_directory_structures(INODE *inode, BLOCK *block,
     block -> content.directory.entry[1].inode_reference = parent_inode_reference;
     strcpy(block -> content.directory.entry[1].name, "..");
 
-    for(int i = 2; i < N_DIRECTORY_ENTRIES_PER_BLOCK; ++i)
-    {
+    for(int i = 2; i < N_DIRECTORY_ENTRIES_PER_BLOCK; ++i){
       block -> content.directory.entry[i].inode_reference = UNALLOCATED_INODE;
     }
 
@@ -300,16 +301,18 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
 
 int oufs_find_open_bit(unsigned char value)
 {
-  // TODO
-  int compare = 128; // 1000 0000
-  // TODO
+
+  int one = 0x80;
+  int two = ~((int)value);
+
   for(int i = 7; i >= 0; --i)
   {
-      if((value & compare) == compare)
-        return i;
+     if((one & two) == one)
+        return one;
 
-      compare = compare >>1;
+      one = one >> 1;
   }
+
   // Not found
   return(-1);
 }
@@ -332,8 +335,23 @@ int oufs_allocate_new_directory(INODE_REFERENCE parent_reference)
     return(UNALLOCATED_INODE);
   }
 
+  //find available inode
+  int bit = 0;
+  int byte;
+  for(byte = 0; byte < (N_INODES >> 3); ++byte)
+  {
+     unsigned char cur = masterBlock.content.master.inode_allocated_flag[byte];
+     bit = oufs_find_open_bit(cur);
+     if(bit != -1){
+        break;
+     }
+  }
+
+  if(bit == -1)   //There is not room to allocate the dictinonary
+    return UNALLOCATED_INODE;
+
+  return 1;
 
 
-  // TODO
-  return -1;
+  
 };
