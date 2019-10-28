@@ -77,27 +77,27 @@ void oufs_init_directory_structures(INODE *inode, BLOCK *block,
 				    INODE_REFERENCE self_inode_reference,
 				    INODE_REFERENCE parent_inode_reference)
 {
+
+    //TRY TO IMPLEMENT USING THE oufs_allocate_new_directory
+    memset(block, 0, BLOCK_SIZE);  //RESET BLOCK
+
     // TODO
     //Initialize root directory inode
     oufs_set_inode(inode, DIRECTORY_TYPE, 1, self_block_reference, 2);  
     
-
-    BLOCK dirBlock;
-    dirBlock.next_block = UNALLOCATED_BLOCK;
-    dirBlock.content.directory.entry[0].inode_reference = 0;
-    strcpy(dirBlock.content.directory.entry[0].name, ".\0");
-
-    dirBlock.content.directory.entry[1].inode_reference = ROOT_DIRECTORY_INODE;
-    strcpy(dirBlock.content.directory.entry[1].name, "..\0");
+    block -> next_block = UNALLOCATED_BLOCK;
+    block -> content.directory.entry[0].inode_reference = self_inode_reference;
+    strcpy(block -> content.directory.entry[0].name, ".");
+    block -> content.directory.entry[1].inode_reference = parent_inode_reference;
+    strcpy(block -> content.directory.entry[1].name, "..");
 
     for(int i = 2; i < N_DIRECTORY_ENTRIES_PER_BLOCK; ++i)
     {
-      dirBlock.content.directory.entry[i].inode_reference = UNALLOCATED_INODE;
+      block -> content.directory.entry[i].inode_reference = UNALLOCATED_INODE;
     }
 
-
-    BLOCK_REFERENCE ref = 5;
-    if(virtual_disk_write_block(ref, &dirBlock)  == -1){
+    
+    if(virtual_disk_write_block(ROOT_DIRECTORY_BLOCK, block)  == -1){
       fprintf(stderr, "Write to block error: oufs_lib_support -> oufs_init_directory_structures\n");
     }
 
@@ -324,13 +324,15 @@ int oufs_find_open_bit(unsigned char value)
  */
 int oufs_allocate_new_directory(INODE_REFERENCE parent_reference)
 {
-  BLOCK block;
+  BLOCK masterBlock;
   BLOCK block2;
   // Read the master block
-  if(virtual_disk_read_block(MASTER_BLOCK_REFERENCE, &block) != 0) {
+  if(virtual_disk_read_block(MASTER_BLOCK_REFERENCE, &masterBlock) != 0) {
     // Read error
     return(UNALLOCATED_INODE);
   }
+
+
 
   // TODO
   return -1;

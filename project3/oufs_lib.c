@@ -121,13 +121,11 @@ int oufs_format_disk(char  *virtual_disk_name, char *pipe_name_base)
 				 ROOT_DIRECTORY_INODE, ROOT_DIRECTORY_INODE);
 
   // Write the results to the disk
-  INODE_REFERENCE ref = 0;
-  if(oufs_write_inode_by_reference(ref, &inode) != 0) {
+    if(oufs_write_inode_by_reference(ROOT_DIRECTORY_INODE  , &inode) != 0) {
     return(-3);  fprintf(stderr, "Write inode by refferenced failed: oufs_lib\n");
   }
 
   // TODO: complete implementation
-  //make inode
 
 
 
