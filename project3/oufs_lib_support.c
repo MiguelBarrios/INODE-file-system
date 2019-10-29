@@ -308,7 +308,7 @@ int oufs_find_open_bit(unsigned char value)
   for(int i = 7; i >= 0; --i)
   {
      if((one & two) == one)
-        return one;
+        return i;
 
       one = one >> 1;
   }
@@ -328,7 +328,7 @@ int oufs_find_open_bit(unsigned char value)
 int oufs_allocate_new_directory(INODE_REFERENCE parent_reference)
 {
   BLOCK masterBlock;
-  BLOCK block2;
+  BLOCK newDirectoryBlock;
   // Read the master block
   if(virtual_disk_read_block(MASTER_BLOCK_REFERENCE, &masterBlock) != 0) {
     // Read error
@@ -337,15 +337,40 @@ int oufs_allocate_new_directory(INODE_REFERENCE parent_reference)
 
   //find available inode
   int bit = 0;
-  int byte;
+  int byte = 0;
   for(byte = 0; byte < (N_INODES >> 3); ++byte)
   {
      unsigned char cur = masterBlock.content.master.inode_allocated_flag[byte];
-     bit = oufs_find_open_bit(cur);
+     bit = oufs_find_open_bit(byte);
      if(bit != -1){
         break;
      }
   }
+
+  INODE_REFERENCE inodeRef = (byte * 7) + (7 - bit);   //check to see if corret
+
+  //get next avaliable free block
+  if(virtual_disk_read_block(masterBlock.content.master.unallocated_front, &newDirectoryBlock) != 0) {
+     fprintf(stderr, "Read error oufs_lib_support -> oufs_allocate_new_directory\n");
+  }
+
+
+  //updates free list with new front
+  masterBlock.content.master.unallocated_front = newDirectoryBlock.next_block;
+
+  //clear directory next block
+  newDirectoryBlock.next_block = UNALLOCATED_BLOCK;
+
+  //TODO:  update inode_allocation flag table
+  //TODO: WRITE MASTER BLOCK BACK TO FILE
+  //TODO: write newDirectery block bac to file
+  //TODO: write inode to file
+
+
+
+
+
+
 
   if(bit == -1)   //There is not room to allocate the dictinonary
     return UNALLOCATED_INODE;

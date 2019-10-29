@@ -91,7 +91,7 @@ int oufs_format_disk(char  *virtual_disk_name, char *pipe_name_base)
 
   BLOCK block;
 
-  // Zero out the block
+  //------------ Zero out the block -----------
   memset(&block, 0, BLOCK_SIZE);
   for(int i = 0; i < N_BLOCKS; ++i) {
     if(virtual_disk_write_block(i, &block) < 0) {
@@ -102,10 +102,10 @@ int oufs_format_disk(char  *virtual_disk_name, char *pipe_name_base)
   //-------- Master Block initialization ---------
 
   block.next_block = UNALLOCATED_BLOCK;
-  block.content.master.inode_allocated_flag[0] = 0x80;  //mark inode 0 as allocated
+  block.content.master.inode_allocated_flag[0] = 0x80;  //mark inode 0(Root dir inode) as allocated
 
   //Initialize the linked list of free blocks
-  BLOCK_REFERENCE front = 6;  //this does include the Root directory
+  BLOCK_REFERENCE front = 6;  //6 becuase the root directory will already be alocated
   BLOCK_REFERENCE end = 127;
   block.content.master.unallocated_front = front; //first free block after inode blocks
   block.content.master.unallocated_end = end; //last block
@@ -115,33 +115,54 @@ int oufs_format_disk(char  *virtual_disk_name, char *pipe_name_base)
     fprintf(stderr, "writing master block to disk error: oufs_lib -> oufs_format_disk\n");
   }
 
-  //Links remainder of free list
+  //initializes remainder of free list
   BLOCK link;
-  for(BLOCK_REFERENCE cur = 6, next = 7; cur < 127; ++next, ++cur)
+  for(BLOCK_REFERENCE cur = 6, next = 7; cur < N_BLOCKS - 1; ++next, ++cur)
   {
       link.next_block = next;
       
       //write block to disk
       if(virtual_disk_write_block(cur, &link) == -1){
-        fprintf(stderr, "write to block error\n");
+        fprintf(stderr, "write to block error: oufs_lib -> oufs_format_disk\n");
     }
   }
 
   //Writes Last link  in Free list to disk
   link.next_block = UNALLOCATED_BLOCK;
-  if(virtual_disk_write_block(127, &link) == -1){
+  if(virtual_disk_write_block(N_BLOCKS - 1, &link) == -1){
         fprintf(stderr, "write to block error\n");
   }
-
   //--------- End Master Block initialization --------
 
-  // Root directory inode / block
+
+  //-------- Inodes initialization -------------------  
+  // ?   do the inodes have to be linked to the blocks at this point
+  BLOCK inodeBlock;
+  inodeBlock.next_block = UNALLOCATED_BLOCK;
+
   INODE inode;
-  oufs_init_directory_structures(&inode, &block, ROOT_DIRECTORY_BLOCK,
+  inode.type = UNUSED_TYPE;
+  inode.n_references = 0;
+  inode.content = UNALLOCATED_BLOCK;
+  inode.size = 0;
+
+  for(int i = 0; i < N_INODES_PER_BLOCK; ++i){
+  	 inodeBlock.content.inodes.inode[i] = inode;
+  }
+
+  for(BLOCK_REFERENCE i = 1; i <= N_INODE_BLOCKS; ++i){
+  	if(virtual_disk_write_block(i, &inodeBlock) == -1){
+        fprintf(stderr, "Writing inode block error oufs_lib -> oufs_format_disk()\n");
+ 	 }
+  }
+
+  //----------- init Root directory inode and block -------
+  INODE rootInode;
+  oufs_init_directory_structures(&rootInode, &block, ROOT_DIRECTORY_BLOCK,
 				 ROOT_DIRECTORY_INODE, ROOT_DIRECTORY_INODE);
 
   // Write the results to the disk
-    if(oufs_write_inode_by_reference(ROOT_DIRECTORY_INODE  , &inode) != 0) {
+    if(oufs_write_inode_by_reference(ROOT_DIRECTORY_INODE  , &rootInode) != 0) {
 	    return(-3);  fprintf(stderr, "Write inode by refferenced failed: oufs_lib\n");
   }
   
@@ -259,6 +280,11 @@ int oufs_mkdir(char *cwd, char *path)
       fprintf(stderr, "oufs_mkdir(): ret = %d\n", ret);
     return(-1);
   };
+
+
+
+
+
 
   // TODO: complete implementation
   return (-1);  
