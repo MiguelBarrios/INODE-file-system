@@ -13,6 +13,8 @@
 
 extern int debug;
 
+//change dir in oufs:  export OUFS_PWD=/foo
+
 /**
  * Deallocate a single block.
  * - Modify the in-memory copy of the master block
@@ -122,13 +124,13 @@ int oufs_read_inode_by_reference(INODE_REFERENCE i, INODE *inode)
 
   // Find the address of the inode block and the inode within the block
   BLOCK_REFERENCE block = i / N_INODES_PER_BLOCK + 1;
-  int element = (i % N_INODES_PER_BLOCK);
+  int index = (i % N_INODES_PER_BLOCK);
 
   // Load the block that contains the inode
   BLOCK b;
   if(virtual_disk_read_block(block, &b) == 0) {
     // Successfully loaded the block: copy just this inode
-    *inode = b.content.inodes.inode[element];
+    *inode = b.content.inodes.inode[index];
     return(0);
   }
   // Error case
@@ -203,12 +205,30 @@ void oufs_set_inode(INODE *inode, INODE_TYPE type, int n_references,
  * @return = INODE_REFERENCE for the sub-item if found; UNALLOCATED_INODE if not found
  */
 
-int oufs_find_directory_element(INODE *inode, char *element_name)
+int oufs_find_directory_element(INODE *inode, char *element_name)         //TODO   check for bugs
 {
   if(debug)
     fprintf(stderr,"\tDEBUG: oufs_find_directory_element: %s\n", element_name);
 
-  // TODO
+  //returns  if not a valid directory inode
+  if(inode -> type != DIRECTORY_TYPE || inode -> content == UNALLOCATED_BLOCK)   
+    return UNALLOCATED_INODE;
+
+  BLOCK block;
+  if(virtual_disk_read_block(inode -> content, &block) != 0){
+    fprintf(stderr, "oufs_lib_support -> oufs_find_directory_element() error");
+  }
+
+  for(INODE_REFERENCE i = 0; i < N_DIRECTORY_ENTRIES_PER_BLOCK; ++i)
+  {
+      DIRECTORY_ENTRY entry = block.content.directory.entry[i];
+      if(entry.inode_reference != UNALLOCATED_INODE){
+        if(strcmp(element_name, (const char *)&entry.name) == 0){           //TODO check to see if works
+          return entry.inode_reference;
+        }
+      }
+  }
+
   return -1;
 }
 
@@ -264,17 +284,21 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
   // Parse the full path
   char *directory_name;
   directory_name = strtok(full_path, "/");
-  while(directory_name != NULL) {
-    if(strlen(directory_name) >= FILE_NAME_SIZE-1) 
-      // Truncate the name
-      directory_name[FILE_NAME_SIZE - 1] = 0;
-    if(debug){
-      fprintf(stderr, "\tDEBUG: Directory: %s\n", directory_name);
-    }
+  while(directory_name != NULL)
+  {   // Truncate the name
+      if(strlen(directory_name) >= FILE_NAME_SIZE-1){  
+        directory_name[FILE_NAME_SIZE - 1] = 0;
+      }
+      if(debug){
+        fprintf(stderr, "\tDEBUG: Directory: %s\n", directory_name);
+      }
+    
+    //-------------TODO-------------------
+      
 
-    // TODO
 
-  };
+      directory_name = strtok(NULL, "/");  //Gets next token
+  }
 
   // Item found.
   if(*child == UNALLOCATED_INODE) {
