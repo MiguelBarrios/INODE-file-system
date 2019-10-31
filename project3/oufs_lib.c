@@ -194,10 +194,21 @@ static int inode_compare_to(const void *d1, const void *d2)
   DIRECTORY_ENTRY* e1 = (DIRECTORY_ENTRY*) d1;
   DIRECTORY_ENTRY* e2 = (DIRECTORY_ENTRY*) d2;
 
-  // TODO: complete implementation
 
+  if(e1 -> inode_reference == UNALLOCATED_INODE && e2 -> inode_reference != UNALLOCATED_INODE){
+      return -1;
+  }
+  else if(e1 -> inode_reference != UNALLOCATED_INODE && e2 -> inode_reference == UNALLOCATED_INODE){
+      return 1;
+  }
 
-  return 1; //Temp fix lator
+  if(strcmp(e1 -> name, e2 -> name) == 0)
+    return 0;
+  else if(strcmp(e1 -> name, e2 -> name) < 0)
+    return -1;
+  else
+    return 1;
+
 }
 
 
@@ -216,7 +227,7 @@ static int inode_compare_to(const void *d1, const void *d2)
  * @param path Absolute or relative path to the file/directory
  * @return 0 if success
  *         -x if error
- *
+ *                          OUPUT MUST BE SORTED
  */
 
 int oufs_list(char *cwd, char *path)
@@ -239,6 +250,26 @@ int oufs_list(char *cwd, char *path)
       fprintf(stderr, "\tDEBUG: Child found (type=%s).\n",  INODE_TYPE_NAME[inode.type]);
 
     // TODO: complete implementation
+
+    INODE node;
+
+    oufs_read_inode_by_reference(child, &node);
+
+
+
+    BLOCK block;
+    if(virtual_disk_read_block(node.content, &block) != 0) {
+    fprintf(stderr, "Read Error\n");
+    }
+
+    DIRECTORY_BLOCK directory = block.content.directory;
+
+    for(int i = 0; i < N_DIRECTORY_ENTRIES_PER_BLOCK; ++i)
+    {
+        if(directory.entry[i].inode_reference != UNALLOCATED_INODE)
+          fprintf(stderr, "%s/\n",directory.entry[i].name);
+    }
+
 
   }else {
     // Did not find the specified file/directory

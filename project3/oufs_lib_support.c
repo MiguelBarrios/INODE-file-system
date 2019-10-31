@@ -336,19 +336,15 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
                     for(int i = 0; i < N_DIRECTORY_ENTRIES_PER_BLOCK && found == 0; ++i)
                     {
                         DIRECTORY_ENTRY entry = block2.content.directory.entry[i];
-                        if(entry.inode_reference != UNALLOCATED_INODE)
+                        if((entry.inode_reference != UNALLOCATED_INODE) && (strcmp(entry.name, directory_name) == 0))
                         {
-                            if(strcmp(entry.name, directory_name) == 0)
-                            {
-                                fprintf(stderr, "Assigning grandparent: %d, parent: %d, child: %d\n", *parent, *child, entry.inode_reference);
-                                grandparent = *parent;
-                                *parent = *child;
-                                *child = entry.inode_reference;
-                                found = 1;
-                            }
-
+                            fprintf(stderr, "Assigning grandparent: %d, parent: %d, child: %d\n", *parent, *child, entry.inode_reference);
+                            grandparent = *parent;
+                            *parent = *child;
+                            *child = entry.inode_reference;
+                            found = 1;
                         }
-                      }
+                    }
                 }else{fprintf(stderr, "Read error \n"); }
           }else{fprintf(stderr, "Read error Error");}
       }
@@ -442,6 +438,7 @@ int oufs_allocate_new_directory(INODE_REFERENCE parent_reference)
      fprintf(stderr, "Read error oufs_lib_support -> oufs_allocate_new_directory\n");
   }
 
+  
 
   //updates free list with new front
   masterBlock.content.master.unallocated_front = newDirectoryBlock.next_block;
