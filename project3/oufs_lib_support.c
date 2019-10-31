@@ -338,61 +338,29 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
                         DIRECTORY_ENTRY entry = block2.content.directory.entry[i];
                         if(entry.inode_reference != UNALLOCATED_INODE)
                         {
-                            //fprintf(stderr, "values grandparent %d, parent %d, child %d\n", grandparent, *parent, *child);
-
-                            //fprintf(stderr, "Comparing %s and %s\n", directory_name, entry.name);
                             if(strcmp(entry.name, directory_name) == 0)
                             {
-                              //-------------new-------------------
-
-                                 fprintf(stderr, "Assigning grandparent %d\n", *parent);
-                                 grandparent = *parent;
-                                 fprintf(stderr, "Assigning parent %d\n", *child);
-                                 *parent = *child;
-                                 fprintf(stderr, "Assigning child %d\n", entry.inode_reference);
-                                 *child = entry.inode_reference;
-
-
-                                /*        unsimplified version                          
-                                if(*child == 0){
-                                  fprintf(stderr, "Assigning child %d\n", entry.inode_reference);
-                                   *child = entry.inode_reference;
-                                }
-                                else if(*parent == 0){
-                                  fprintf(stderr, "Assigning parent %d\n", *child);
-                                  *parent = *child;
-                                  fprintf(stderr, "Assigning child %d\n", entry.inode_reference);
-                                  *child = entry.inode_reference;
-                                }
-                                else if(grandparent == 0){
-                                   fprintf(stderr, "Assigning grandparent %d\n", *parent);
-                                   grandparent = *parent;
-                                   fprintf(stderr, "Assigning parent %d\n", *child);
-                                   *parent = *child;
-                                   fprintf(stderr, "Assigning child %d\n", entry.inode_reference);
-                                   *child = entry.inode_reference;
-                                }
-                                else if(*child != 0 && *parent != 0 && grandparent != 0)
-                                {//all are allocated
-                                    fprintf(stderr, "Assigning grandparent %d\n", *parent);
-                                    grandparent = *parent;
-                                    fprintf(stderr, "Assigning parent %d\n", *child);
-                                    *parent = *child;
-                                    fprintf(stderr, "Assigning child %d\n", entry.inode_reference);
-                                    *child = entry.inode_reference;
-                                }
-                                */
-                                //found = 1;
+                                fprintf(stderr, "Assigning grandparent: %d, parent: %d, child: %d\n", *parent, *child, entry.inode_reference);
+                                grandparent = *parent;
+                                *parent = *child;
+                                *child = entry.inode_reference;
+                                found = 1;
                             }
 
-                          }
+                        }
                       }
                 }else{fprintf(stderr, "Read error \n"); }
           }else{fprintf(stderr, "Read error Error");}
       }
 
-      //case work name is not found
-
+      if(found == 0)
+      {
+          fprintf(stderr, "Directory: %s not found!\n", directory_name);
+          *child = UNALLOCATED_INODE;
+          *parent = UNALLOCATED_INODE;
+          return -1;
+      }
+      //case where directory not found 
       directory_name = strtok(NULL, "/");  //Gets next token
   }
 
