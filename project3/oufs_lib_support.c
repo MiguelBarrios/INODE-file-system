@@ -338,35 +338,40 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
                         DIRECTORY_ENTRY entry = block2.content.directory.entry[i];
                         if(entry.inode_reference != UNALLOCATED_INODE)
                         {
-                            fprintf(stderr, "Comparing %s and %s\n", directory_name, entry.name);
+                            //fprintf(stderr, "values grandparent %d, parent %d, child %d\n", grandparent, *parent, *child);
 
-                            INODE tempParent;
-                            if(strcmp(entry.name, "..") == 0)
-                            {
-                                tempParent = entry.inode_reference;
-                            }
-
+                            //fprintf(stderr, "Comparing %s and %s\n", directory_name, entry.name);
                             if(strcmp(entry.name, directory_name) == 0)
                             {
                                 if(*child == 0){
                                   fprintf(stderr, "Assigning child %d\n", entry.inode_reference);
-                                   child = &entry.inode_reference;
+                                   *child = entry.inode_reference;
+
                                 }
                                 else if(*parent == 0){
-                                  fprintf(stderr, "Assigning parent %d\n", entry.inode_reference);
-                                  parent = &entry.inode_reference;
+                                  fprintf(stderr, "Assigning parent %d\n", *child);
+                                  *parent = *child;
+                                  fprintf(stderr, "Assigning child %d\n", entry.inode_reference);
+                                  *child = entry.inode_reference;
                                 }
                                 else if(grandparent == 0){
-                                   fprintf(stderr, "Assigning grandparent %d\n", entry.inode_reference);
-                                   grandparent = entry.inode_reference;
+                                   fprintf(stderr, "Assigning grandparent %d\n", *parent);
+                                   grandparent = *parent;
+                                   fprintf(stderr, "Assigning parent %d\n", *child);
+                                   *parent = *child;
+                                   fprintf(stderr, "Assigning child %d\n", entry.inode_reference);
+                                   *child = entry.inode_reference;
                                 }
-                                else{//all are allocated
-                                    fprintf(stderr, "Assigning %d\n", entry.inode_reference);
+                                else if(*child != 0 && *parent != 0 && grandparent != 0)
+                                {//all are allocated
+                                    fprintf(stderr, "Assigning grandparent %d\n", *parent);
                                     grandparent = *parent;
-                                    parent = child;
-                                    child = &entry.inode_reference;
+                                    fprintf(stderr, "Assigning parent %d\n", *child);
+                                    *parent = *child;
+                                    fprintf(stderr, "Assigning child %d\n", entry.inode_reference);
+                                    *child = entry.inode_reference;
                                 }
-                                found = 1;
+                                //found = 1;
                             }
 
                           }
