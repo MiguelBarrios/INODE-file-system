@@ -84,6 +84,7 @@ void oufs_init_directory_structures(INODE *inode, BLOCK *block,
 
     // TODO
     //Initialize root directory inode
+    //oufs_set_inode(INODE *inode, INODE_TYPE type, int n_references, BLOCK_REFERENCE content, int size)
     oufs_set_inode(inode, DIRECTORY_TYPE, 1, self_block_reference, 2); 
 
     
@@ -281,6 +282,8 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
   if(debug)
     fprintf(stderr, "\tDEBUG: Start search: %d\n", *parent);
 
+  fprintf(stderr, "initial values grandparent %d, parent %d, child %d\n", grandparent, *parent, *child);
+
   //----------------newCode-------------
   BLOCK block;
   if(virtual_disk_read_block(MASTER_BLOCK_REFERENCE, &block) != 0){
@@ -336,29 +339,36 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
                         if(entry.inode_reference != UNALLOCATED_INODE)
                         {
                             fprintf(stderr, "Comparing %s and %s\n", directory_name, entry.name);
+
+                            INODE tempParent;
+                            if(strcmp(entry.name, "..") == 0)
+                            {
+                                tempParent = entry.inode_reference;
+                            }
+
                             if(strcmp(entry.name, directory_name) == 0)
                             {
-                                  //find bug in allocation phase
-                                if(grandparent == 0){
-                                   fprintf(stderr, "Assigning %d\n", entry.inode_reference);
-                                   grandparent = entry.inode_reference;
-                                }
-                                else if(parent == 0){
-                                  fprintf(stderr, "Assigning %d\n", entry.inode_reference);
-                                  parent = &entry.inode_reference;
-                                }
-                                else if(child == 0){
-                                  fprintf(stderr, "Assigning %d\n", entry.inode_reference);
+                                if(*child == 0){
+                                  fprintf(stderr, "Assigning child %d\n", entry.inode_reference);
                                    child = &entry.inode_reference;
                                 }
+                                else if(*parent == 0){
+                                  fprintf(stderr, "Assigning parent %d\n", entry.inode_reference);
+                                  parent = &entry.inode_reference;
+                                }
+                                else if(grandparent == 0){
+                                   fprintf(stderr, "Assigning grandparent %d\n", entry.inode_reference);
+                                   grandparent = entry.inode_reference;
+                                }
                                 else{//all are allocated
-                                  fprintf(stderr, "Assigning %d\n", entry.inode_reference);
-                                   grandparent = *parent;
-                                  parent = child;
-                                  child = &entry.inode_reference;
+                                    fprintf(stderr, "Assigning %d\n", entry.inode_reference);
+                                    grandparent = *parent;
+                                    parent = child;
+                                    child = &entry.inode_reference;
                                 }
                                 found = 1;
                             }
+
                           }
                       }
                 }else{fprintf(stderr, "Read error \n"); }
