@@ -166,6 +166,10 @@ int oufs_format_disk(char  *virtual_disk_name, char *pipe_name_base)
 	    return(-3);  fprintf(stderr, "Write inode by refferenced failed: oufs_lib\n");
   }
   
+  //Test
+  fprintf(stderr, "Number of inodes, %d\n", N_INODES);
+
+
   // Done
   virtual_disk_detach();
  

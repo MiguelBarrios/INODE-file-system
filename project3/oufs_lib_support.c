@@ -123,7 +123,7 @@ int oufs_read_inode_by_reference(INODE_REFERENCE i, INODE *inode)
     fprintf(stderr, "\tDEBUG: Fetching inode %d\n", i);
 
   // Find the address of the inode block and the inode within the block
-  BLOCK_REFERENCE block = i / N_INODES_PER_BLOCK + 1;
+  BLOCK_REFERENCE block = (i / N_INODES_PER_BLOCK) + 1;
   int index = (i % N_INODES_PER_BLOCK);
 
   // Load the block that contains the inode
@@ -154,14 +154,14 @@ int oufs_write_inode_by_reference(INODE_REFERENCE i, INODE *inode)
 
   //TODO
   //get block, where inode is housed
-  BLOCK_REFERENCE blockIndex = (unsigned short)(i / 32) + 1;
+  BLOCK_REFERENCE blockIndex = (unsigned short)(i / N_INODES_PER_BLOCK) + 1;
   BLOCK block;
   if(virtual_disk_read_block(blockIndex,&block) == -1){
     fprintf(stderr, "Read block error: oufsLibSupport -> oufs_write_inode_by_reference\n");
   }
 
   //write inode to block   .. check to see if correct
-  unsigned short arrayIndex = i % 32;
+  unsigned short arrayIndex = i % N_INODES_PER_BLOCK;
   block.content.inodes.inode[arrayIndex] = *inode;
 
   //write block to disk
@@ -281,6 +281,32 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
   if(debug)
     fprintf(stderr, "\tDEBUG: Start search: %d\n", *parent);
 
+  //----------------newCode-------------
+  BLOCK block;
+  if(virtual_disk_read_block(MASTER_BLOCK_REFERENCE, &block) != 0){
+    fprintf(stderr, "oufs_lib_support -> oufs_find_file() ERROR\n");
+  }
+
+  unsigned char *inodesTable = block.content.master.inode_allocated_flag;       
+  int size = 0;
+  INODE_REFERENCE allocatedInodeRef[(N_INODES >>3)];
+
+  for(int byte = 0; byte < (N_INODES >>3); ++byte)
+  {
+      int c = (int)inodesTable[byte];
+      for(int bit = 7, compare = 0x80; bit >= 0 && c != 0; --bit)
+      {
+          if((c & compare) == compare)  //INDOE is allocated
+          {
+              allocatedInodeRef[size] = byte + (7 - bit);
+              ++size;
+          }
+          compare = compare >> 1;
+      }
+  }
+
+  //-------------End newCode-----------
+
   // Parse the full path
   char *directory_name;
   directory_name = strtok(full_path, "/");
@@ -294,8 +320,52 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
       }
     
     //-------------TODO-------------------
-      
+      //need to find directory inodes
+      int found = 0;
+      for(int i = 0; i < size && found == 0; ++i)
+      {
+          INODE curInode;
+          if((oufs_read_inode_by_reference(allocatedInodeRef[i], &curInode) == 0) && (curInode.type == DIRECTORY_TYPE))
+          {
+                BLOCK block2;
+                if(virtual_disk_read_block(curInode.content, &block2) == 0)
+                {
+                    for(int i = 0; i < N_DIRECTORY_ENTRIES_PER_BLOCK && found == 0; ++i)
+                    {
+                        DIRECTORY_ENTRY entry = block2.content.directory.entry[i];
+                        if(entry.inode_reference != UNALLOCATED_INODE)
+                        {
+                            fprintf(stderr, "Comparing %s and %s\n", directory_name, entry.name);
+                            if(strcmp(entry.name, directory_name) == 0)
+                            {
+                                  //find bug in allocation phase
+                                if(grandparent == 0){
+                                   fprintf(stderr, "Assigning %d\n", entry.inode_reference);
+                                   grandparent = entry.inode_reference;
+                                }
+                                else if(parent == 0){
+                                  fprintf(stderr, "Assigning %d\n", entry.inode_reference);
+                                  parent = &entry.inode_reference;
+                                }
+                                else if(child == 0){
+                                  fprintf(stderr, "Assigning %d\n", entry.inode_reference);
+                                   child = &entry.inode_reference;
+                                }
+                                else{//all are allocated
+                                  fprintf(stderr, "Assigning %d\n", entry.inode_reference);
+                                   grandparent = *parent;
+                                  parent = child;
+                                  child = &entry.inode_reference;
+                                }
+                                found = 1;
+                            }
+                          }
+                      }
+                }else{fprintf(stderr, "Read error \n"); }
+          }else{fprintf(stderr, "Read error Error");}
+      }
 
+      //case work name is not found
 
       directory_name = strtok(NULL, "/");  //Gets next token
   }
