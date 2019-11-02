@@ -263,27 +263,25 @@ int oufs_list(char *cwd, char *path)
     }
 
     fprintf(stderr, "Num directories %d\n", inode.size);
-    const char *names[inode.size];
 
+    DIRECTORY_ENTRY names[inode.size];
 
-    //TODO: ouput must be sorted
     DIRECTORY_BLOCK directory = block.content.directory;
     int count = 0;
     for(int i = 0; i < N_DIRECTORY_ENTRIES_PER_BLOCK; ++i)
     {
         if(directory.entry[i].inode_reference != UNALLOCATED_INODE)
         {
-          names[count] = directory.entry[i].name;
+          names[count] = directory.entry[i];
           ++count;
         }
     }
 
-    
+    qsort(names, count, sizeof(DIRECTORY_ENTRY),inode_compare_to);
 
     for(int i = 0; i < count; ++i){
-        fprintf(stderr, "%s/\n", names[i]);
+        fprintf(stderr, "%s/\n", names[i].name);
     }
-
 
   }else {
     // Did not find the specified file/directory
@@ -295,6 +293,8 @@ int oufs_list(char *cwd, char *path)
   // Done: return the status from the search
   return(ret);
 }
+
+
 
 
 
