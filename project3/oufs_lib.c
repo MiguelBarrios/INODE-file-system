@@ -330,12 +330,36 @@ int oufs_mkdir(char *cwd, char *path)
     return(-1);
   };
 
+  fprintf(stderr, "parent refference: %d\nChild refference: %d\n", parent, child);
+
+  INODE parentInode;
+  INODE childInode;
+
+  //returns if the Child exists OR the parent does not exist             
+  if(child != UNALLOCATED_INODE || parent == UNALLOCATED_INODE){
+      fprintf(stderr, "Child already exist || parent DNE\n");
+      return -1;
+  }
+
+
+  //returns if parent inode is not a directory
+  if(oufs_read_inode_by_reference(parent, &parentInode) != 0 || parentInode.type != DIRECTORY_TYPE){
+      fprintf(stderr, "read inode erro\n");
+      return -1;
+  }
+
+  //returns if parant does not have space for the new directory
+  if(parentInode.size >= N_DIRECTORY_ENTRIES_PER_BLOCK){
+      fprintf(stderr, "new directory cannot be added, Parent directory does is full\n");
+      return -1;
+  }
+
+  //-----All conditions met, make new directory----------
 
 
 
 
 
-  // TODO: complete implementation
   return (-1);  
 }
 
