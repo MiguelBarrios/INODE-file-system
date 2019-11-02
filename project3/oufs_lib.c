@@ -252,9 +252,9 @@ int oufs_list(char *cwd, char *path)
     // TODO: complete implementation
 
     INODE node;
-
-    oufs_read_inode_by_reference(child, &node);
-
+    if(oufs_read_inode_by_reference(child, &node) != 0){
+        fprintf(stderr, "Read inode Error\n");
+    }
 
 
     BLOCK block;
@@ -262,12 +262,26 @@ int oufs_list(char *cwd, char *path)
     fprintf(stderr, "Read Error\n");
     }
 
-    DIRECTORY_BLOCK directory = block.content.directory;
+    fprintf(stderr, "Num directories %d\n", inode.size);
+    const char *names[inode.size];
 
+
+    //TODO: ouput must be sorted
+    DIRECTORY_BLOCK directory = block.content.directory;
+    int count = 0;
     for(int i = 0; i < N_DIRECTORY_ENTRIES_PER_BLOCK; ++i)
     {
         if(directory.entry[i].inode_reference != UNALLOCATED_INODE)
-          fprintf(stderr, "%s/\n",directory.entry[i].name);
+        {
+          names[count] = directory.entry[i].name;
+          ++count;
+        }
+    }
+
+    
+
+    for(int i = 0; i < count; ++i){
+        fprintf(stderr, "%s/\n", names[i]);
     }
 
 
