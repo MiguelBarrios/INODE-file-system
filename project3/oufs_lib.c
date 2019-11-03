@@ -235,8 +235,12 @@ int oufs_list(char *cwd, char *path)
   INODE_REFERENCE parent;
   INODE_REFERENCE child;
 
+
+
   // Look up the inodes for the parent and child
   int ret = oufs_find_file(cwd, path, &parent, &child, NULL);
+
+
 
   // Did we find the specified file?
   if(ret == 0 && child != UNALLOCATED_INODE)
@@ -252,14 +256,16 @@ int oufs_list(char *cwd, char *path)
     // TODO: complete implementation
 
     INODE node;
-    if(oufs_read_inode_by_reference(child, &node) != 0){
+    if(oufs_read_inode_by_reference(child, &node) != 0)
+    {
         fprintf(stderr, "Read inode Error\n");
     }
 
 
     BLOCK block;
-    if(virtual_disk_read_block(node.content, &block) != 0) {
-    fprintf(stderr, "Read Error\n");
+    if(virtual_disk_read_block(node.content, &block) != 0)
+    {
+        fprintf(stderr, "Read Error\n");
     }
 
     fprintf(stderr, "Num directories %d\n", inode.size);
@@ -279,11 +285,13 @@ int oufs_list(char *cwd, char *path)
 
     qsort(names, count, sizeof(DIRECTORY_ENTRY),inode_compare_to);
 
-    for(int i = 0; i < count; ++i){
+    for(int i = 0; i < count; ++i)
+    {
         fprintf(stderr, "%s/\n", names[i].name);
     }
 
-  }else {
+  }else 
+  {
     // Did not find the specified file/directory
     fprintf(stderr, "Not found\n");
     if(debug){
@@ -330,14 +338,19 @@ int oufs_mkdir(char *cwd, char *path)
     return(-1);
   };
 
+  if(ret == 0){
+      fprintf(stderr, "Directory already exists\n");
+      return 0;
+  }
+
   fprintf(stderr, "parent refference: %d\nChild refference: %d\n", parent, child);
 
   INODE parentInode;
   INODE childInode;
 
   //returns if the Child exists OR the parent does not exist             
-  if(child != UNALLOCATED_INODE || parent == UNALLOCATED_INODE){
-      fprintf(stderr, "Child already exist || parent DNE\n");
+  if(child != UNALLOCATED_INODE){
+      fprintf(stderr, "Child already exist\n");
       return -1;
   }
 
@@ -356,11 +369,30 @@ int oufs_mkdir(char *cwd, char *path)
 
   //-----All conditions met, make new directory----------
 
+  fprintf(stderr, "Ready to make new Directory\n");
+  BLOCK block;
+  if(virtual_disk_read_block(MASTER_BLOCK_REFERENCE, &block) == 0)
+  {
+      MASTER_BLOCK masterblock = block.content.master;
+
+      INODE_REFERENCE ref = oufs_allocate_new_directory(parent);
+      fprintf(stderr, "new directory made inode: %d\n", ref);
+
+
+      //TODO: update parent directory to include new directory
+      fprintf(stderr, "Parent Directory: %d", parent);
 
 
 
+  }
+  else
+  {
+      fprintf(stderr, "Read block error\n");
+  }
 
-  return (-1);  
+
+
+  return 0;  
 }
 
 /**

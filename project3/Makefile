@@ -1,4 +1,4 @@
-all:	 ouFormat inspect ls oufs_mkdir oufs_rmdir oufs_stats
+all:	 ouFormat inspect oufs_ls oufs_mkdir oufs_rmdir oufs_stats
 reset:	clean  all
 
 tmp: ls
@@ -11,7 +11,7 @@ ouFormat:	oufs_format.c
 inspect: oufs_inspect.c
 	gcc oufs_inspect.c oufs_lib.c oufs_lib_support.c virtual_disk.c storage.c -o oufs_inspect -lm
 
-ls: oufs_ls.c
+oufs_ls: oufs_ls.c
 	gcc oufs_ls.c virtual_disk.c oufs_lib.c storage.c oufs_lib_support.c -o oufs_ls -lm
 
 oufs_mkdir: oufs_mkdir.c
@@ -34,4 +34,4 @@ clean:
 zip:
 	zip project3.zip oufs_format.c oufs.h oufs_inspect.c oufs_lib.c oufs_lib.h oufs_lib_support.h oufs_lib_support.c oufs_ls.c oufs_mkdir.c oufs_rmdir.c oufs_stats.c storage.c storage.h virtual_disk.h virtual_disk.c Makefile README.txt
 
-rbuild: clean all
+rbuild: clean all 

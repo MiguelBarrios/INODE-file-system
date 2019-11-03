@@ -1,4 +1,4 @@
-/**
+/*
  *  Project 3
  *  oufs_lib_support.c
  *
@@ -101,7 +101,7 @@ void oufs_init_directory_structures(INODE *inode, BLOCK *block,
     }
 
     
-    if(virtual_disk_write_block(ROOT_DIRECTORY_BLOCK, block)  == -1){
+    if(virtual_disk_write_block(self_block_reference, block)  == -1){
       fprintf(stderr, "Write to block error: oufs_lib_support -> oufs_init_directory_structures\n");
     }
 
@@ -253,8 +253,17 @@ int oufs_find_directory_element(INODE *inode, char *element_name)         //TODO
  *
  */
 int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERENCE *child,
-		   char *local_name)
+       char *local_name)
 {
+  //test
+  if(strlen(path) == 0){
+     fprintf(stderr,"Path was not provied will find cur directory\n");
+     path = cwd;
+  }
+  //endTest
+
+
+
   INODE_REFERENCE grandparent;
   char full_path[MAX_PATH_LENGTH];
 
@@ -283,7 +292,7 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
     fprintf(stderr, "\tDEBUG: Start search: %d\n", *parent);
 
   fprintf(stderr, "initial values grandparent %d, parent %d, child %d\n", grandparent, *parent, *child);
-
+  
   //----------------newCode-------------
   BLOCK block;
   if(virtual_disk_read_block(MASTER_BLOCK_REFERENCE, &block) != 0){
@@ -310,7 +319,7 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
 
   //-------------End newCode-----------
 
-  // Parse the full path
+    // Parse the full path
   char *directory_name;
   directory_name = strtok(full_path, "/");
   while(directory_name != NULL)
@@ -333,16 +342,27 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
                 BLOCK block2;
                 if(virtual_disk_read_block(curInode.content, &block2) == 0)
                 {
+                   
+
                     for(int i = 0; i < N_DIRECTORY_ENTRIES_PER_BLOCK && found == 0; ++i)
                     {
                         DIRECTORY_ENTRY entry = block2.content.directory.entry[i];
                         if((entry.inode_reference != UNALLOCATED_INODE) && (strcmp(entry.name, directory_name) == 0))
                         {
-                            fprintf(stderr, "Assigning grandparent: %d, parent: %d, child: %d\n", *parent, *child, entry.inode_reference);
-                            grandparent = *parent;
-                            *parent = *child;
-                            *child = entry.inode_reference;
-                            found = 1;
+                            //Parent directory found
+                            if((oufs_read_inode_by_reference(entry.inode_reference,&curInode) == 0 )&& (curInode.type == DIRECTORY_TYPE))
+                            {
+                                //Directry that we are looking for
+                                if(virtual_disk_read_block(curInode.content, &block2) == 0)
+                                {
+                                    fprintf(stderr,"It got here\n");
+                                    grandparent = *parent;
+                                    *parent = block2.content.directory.entry[1].inode_reference;
+                                    *child = block2.content.directory.entry[0].inode_reference;
+                                    found = 1;
+                                }
+
+                            }
                         }
                     }
                 }else{fprintf(stderr, "Read error \n"); }
@@ -353,14 +373,14 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
       {
           fprintf(stderr, "Directory: %s not found!\n", directory_name);
           *child = UNALLOCATED_INODE;
-          *parent = UNALLOCATED_INODE;
+          //*parent = UNALLOCATED_INODE;
           return -1;
       }
       //case where directory not found 
       directory_name = strtok(NULL, "/");  //Gets next token
   }
 
-  // Item found.
+      // Item found.
   if(*child == UNALLOCATED_INODE) {
     // We went too far - roll back one step ***
     *child = *parent;
@@ -371,6 +391,8 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
   }
   // Success!
   return(0);
+
+
 } 
 
 
@@ -386,15 +408,17 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
 int oufs_find_open_bit(unsigned char value)
 {
 
-  int one = 0x80;
-  int two = ~((int)value);
+  int one = value;
+  int two =  1<<7;
+  fprintf(stderr, "one: %d two: %d\n", one, two);
 
   for(int i = 7; i >= 0; --i)
   {
-     if((one & two) == one)
+     if((one & two) != two){
         return i;
+     }
 
-      one = one >> 1;
+      two = two >> 1;
   }
 
   // Not found
@@ -425,42 +449,60 @@ int oufs_allocate_new_directory(INODE_REFERENCE parent_reference)
   for(byte = 0; byte < (N_INODES >> 3); ++byte)
   {
      unsigned char cur = masterBlock.content.master.inode_allocated_flag[byte];
-     bit = oufs_find_open_bit(byte);
+     bit = oufs_find_open_bit(cur);
      if(bit != -1){
         break;
      }
   }
 
-  INODE_REFERENCE inodeRef = (byte * 7) + (7 - bit);   //check to see if corret
+  //updates inode allocation Table
+  unsigned char currentlyAllocatedBits = masterBlock.content.master.inode_allocated_flag[byte];
+  unsigned char allocatedBit = (128 >>(7 - bit));                                            
+  unsigned char updatedBits = currentlyAllocatedBits | allocatedBit;                                             
+  masterBlock.content.master.inode_allocated_flag[byte] = updatedBits;
+  fprintf(stderr, "current: %d  open: %d\n", currentlyAllocatedBits, allocatedBit);
+  fprintf(stderr, "UPDated: %d\n", updatedBits);
 
+  INODE_REFERENCE newDirectoryInode = (byte * 8) + (7 - bit);   //check to see if corret
+  fprintf(stderr, "available inode found: %d\n", newDirectoryInode);
+
+
+  BLOCK_REFERENCE newBlockReference = masterBlock.content.master.unallocated_front;
+  
   //get next avaliable free block
-  if(virtual_disk_read_block(masterBlock.content.master.unallocated_front, &newDirectoryBlock) != 0) {
+  if(virtual_disk_read_block(newBlockReference, &newDirectoryBlock) != 0) {
      fprintf(stderr, "Read error oufs_lib_support -> oufs_allocate_new_directory\n");
   }
 
   
-
   //updates free list with new front
   masterBlock.content.master.unallocated_front = newDirectoryBlock.next_block;
+
+  //rewite upded master block with allocation table and next avaliable free block
+  if(virtual_disk_write_block(MASTER_BLOCK_REFERENCE, &masterBlock) != 0)
+  {
+      fprintf(stderr, "Write master block error\n");
+  }
+
 
   //clear directory next block
   newDirectoryBlock.next_block = UNALLOCATED_BLOCK;
 
-  //TODO:  update inode_allocation flag table
-  //TODO: WRITE MASTER BLOCK BACK TO FILE
-  //TODO: write newDirectery block bac to file
-  //TODO: write inode to file
+  //write new directory writing in ou init directory method
+  INODE newInode;
+  oufs_init_directory_structures(&newInode, &newDirectoryBlock,newBlockReference,newDirectoryInode, parent_reference);
 
-
-
-
-
-
+  //write inode to file
+  if(oufs_write_inode_by_reference(newDirectoryInode  , &newInode) != 0) {
+      fprintf(stderr, "Write inode by refferenced failed: oufs_lib\n");
+      return(-1);  
+  }
+  
 
   if(bit == -1)   //There is not room to allocate the dictinonary
     return UNALLOCATED_INODE;
 
-  return 1;
+  return newDirectoryInode;
 
 
   
