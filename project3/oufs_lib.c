@@ -235,11 +235,19 @@ int oufs_list(char *cwd, char *path)
   INODE_REFERENCE parent;
   INODE_REFERENCE child;
 
-  fprintf(stderr, "cwd: %s\npath: %s\n", cwd, path);
+  debug = 1;
+
+  if(debug)
+    fprintf(stderr, "cwd: %s\npath: %s\n", cwd, path);
 
 
   // Look up the inodes for the parent and child
   int ret = oufs_find_file(cwd, path, &parent, &child, NULL);
+
+  if(ret == -2){
+      fprintf(stderr, "no directorys in file");
+      return -1;
+  }
 
 
 
@@ -269,7 +277,8 @@ int oufs_list(char *cwd, char *path)
         fprintf(stderr, "Read Error\n");
     }
 
-    fprintf(stderr, "Num directories %d\n", inode.size);
+    if(debug)
+      fprintf(stderr, "Num directories %d\n", inode.size);
 
     DIRECTORY_ENTRY names[inode.size];
 

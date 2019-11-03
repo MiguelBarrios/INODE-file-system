@@ -246,6 +246,7 @@ int oufs_find_directory_element(INODE *inode, char *element_name)         //TODO
  *             (i.e., name relative to the parent)
  * @return 0 if no errors
  *         -1 if child not found
+           -2 no directory in file
  *         -x if an error
  *
  */
@@ -254,7 +255,9 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
 {
   //test
   if(strlen(path) == 0){
+      if(debug){
      fprintf(stderr,"Path was not provied will find cur directory\n");
+   }
      path = cwd;
   }
   //endTest
@@ -285,10 +288,11 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
   // Start scanning from the root directory
   // Root directory inode
   grandparent = *parent = *child = 0;
-  if(debug)
+  if(debug){
     fprintf(stderr, "\tDEBUG: Start search: %d\n", *parent);
+    fprintf(stderr, "\tinitial values grandparent %d, parent %d, child %d\n", grandparent, *parent, *child);
+  }
 
-  fprintf(stderr, "\tinitial values grandparent %d, parent %d, child %d\n", grandparent, *parent, *child);
   
   //----------------newCode-------------
   BLOCK block;
@@ -314,7 +318,15 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
       }
   }
 
-  fprintf(stderr, "Number of Alocated inodes: %d", numAlocatedInodes);
+
+  if(debug){
+      fprintf(stderr, "Number of Alocated inodes: %d", numAlocatedInodes);
+  }
+  if(numAlocatedInodes == 0){
+      *parent = UNALLOCATED_INODE;
+      *child = UNALLOCATED_INODE;
+      return -2;
+  }
 
 
 
