@@ -12,6 +12,10 @@ int main(int argc, char** argv) {
 
   oufs_get_environment(cwd, disk_name, pipe_name_base);
 
+  //----endTest----
+
+
+
   // Open the virtual disk
   virtual_disk_attach(disk_name, pipe_name_base);
 

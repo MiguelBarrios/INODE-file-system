@@ -161,14 +161,14 @@ int oufs_format_disk(char  *virtual_disk_name, char *pipe_name_base)
   oufs_init_directory_structures(&rootInode, &block, ROOT_DIRECTORY_BLOCK,
 				 ROOT_DIRECTORY_INODE, ROOT_DIRECTORY_INODE);
 
+  if(virtual_disk_write_block(ROOT_DIRECTORY_BLOCK, &block)  == -1){
+      fprintf(stderr, "Write to block error: oufs_lib_support -> oufs_init_directory_structures\n");
+  }
+
   // Write the results to the disk
-    if(oufs_write_inode_by_reference(ROOT_DIRECTORY_INODE  , &rootInode) != 0) {
+  if(oufs_write_inode_by_reference(ROOT_DIRECTORY_INODE  , &rootInode) != 0) {
 	    return(-3);  fprintf(stderr, "Write inode by refferenced failed: oufs_lib\n");
   }
-  
-  //Test
-  fprintf(stderr, "Number of inodes, %d\n", N_INODES);
-
 
   // Done
   virtual_disk_detach();
@@ -235,6 +235,7 @@ int oufs_list(char *cwd, char *path)
   INODE_REFERENCE parent;
   INODE_REFERENCE child;
 
+  fprintf(stderr, "cwd: %s\npath: %s\n", cwd, path);
 
 
   // Look up the inodes for the parent and child
@@ -322,7 +323,7 @@ int oufs_list(char *cwd, char *path)
  *         -x if error
  *
  */
-int oufs_mkdir(char *cwd, char *path)
+int oufs_mkdir(char *cwd, char *path)             //Case not working where foo/barr is given
 {
   INODE_REFERENCE parent;
   INODE_REFERENCE child;
@@ -369,30 +370,67 @@ int oufs_mkdir(char *cwd, char *path)
 
   //-----All conditions met, make new directory----------
 
-  fprintf(stderr, "Ready to make new Directory\n");
   BLOCK block;
   if(virtual_disk_read_block(MASTER_BLOCK_REFERENCE, &block) == 0)
   {
       MASTER_BLOCK masterblock = block.content.master;
 
-      INODE_REFERENCE ref = oufs_allocate_new_directory(parent);
-      fprintf(stderr, "new directory made inode: %d\n", ref);
+      INODE_REFERENCE newDirectoryInodeRef = oufs_allocate_new_directory(parent);
+
+      if(newDirectoryInodeRef == UNALLOCATED_INODE)
+          return -1;
+
+
+      fprintf(stderr, "new directory made inode: %d\n", newDirectoryInodeRef);
 
 
       //TODO: update parent directory to include new directory
-      fprintf(stderr, "Parent Directory: %d", parent);
+      fprintf(stderr, "Parent Directory: %d\n", parent);
 
 
+      //gets the name of the new directory
+      char *fullpath;
+      char *directory_name;
+      fullpath = strtok(path, "/");
+      while(fullpath != NULL){
+          directory_name = fullpath;
+          fullpath = strtok(NULL, "/");  //Gets next token
+      }
+      fprintf(stderr, "directory_name: %s\n", directory_name);
 
+      
+
+      BLOCK parrentDirectory;
+      if(virtual_disk_read_block(parentInode.content, &parrentDirectory)!= 0){
+          fprintf(stderr, "read inode erro\n");
+          return -1;
+      }
+
+      DIRECTORY_ENTRY newEntry;
+      strcpy(newEntry.name, directory_name);
+      newEntry.inode_reference = newDirectoryInodeRef;
+
+      parrentDirectory.content.directory.entry[parentInode.size] = newEntry;
+
+      //Update parent inode size
+      parentInode.size = parentInode.size + 1;
+
+      //done with parent inode
+      if(oufs_write_inode_by_reference(parent, &parentInode) != 0){
+          fprintf(stderr, "Write inode by ref error\n");
+      }
+
+      //done with parent block
+      if(virtual_disk_write_block(parentInode.content, &parrentDirectory) != 0){
+          fprintf(stderr, "Write block error\n");
+      }
+
+      return 0;
   }
-  else
-  {
-      fprintf(stderr, "Read block error\n");
-  }
 
+  fprintf(stderr, "new Dircotry was not allocated\n");
 
-
-  return 0;  
+  return -1;  
 }
 
 /**
