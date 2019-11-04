@@ -33,14 +33,37 @@ int oufs_deallocate_block(BLOCK *master_block, BLOCK_REFERENCE block_reference)
 {
   BLOCK b;
 
-  if(master_block->content.master.unallocated_front == UNALLOCATED_BLOCK) {
+  if(master_block->content.master.unallocated_front == UNALLOCATED_BLOCK) 
+  {
     // No blocks on the free list.  Both pointers point to this block now
     master_block->content.master.unallocated_front = master_block->content.master.unallocated_end =
       block_reference;
 
-  }else{
-    // TODO
   }
+  else
+  {
+      //---link old last block to recently dealocated block, update master block ref free list end to newly dealocated block
+      BLOCK oldLastBlock;
+      if(virtual_disk_read_block(master_block->content.master.unallocated_end, &oldLastBlock) != 0){
+          fprintf(stderr, "Read block error");
+          return -1;
+      }
+
+      BLOCK_REFERENCE oldRef = master_block->content.master.unallocated_end;
+
+      //Upadate masterblock unallocated end to dealocated block
+      master_block->content.master.unallocated_end = block_reference;
+
+      //Link current last block to block being dealocated
+      oldLastBlock.next_block = block_reference;
+
+      //write old last black back to disk
+      if(virtual_disk_write_block(oldRef, &oldLastBlock) != 0){
+          fprintf(stderr, "Read block error");
+      }      
+
+  }
+
 
   // Update the new end block
   if(virtual_disk_read_block(block_reference, &b) != 0) {
@@ -90,9 +113,7 @@ void oufs_init_directory_structures(INODE *inode, BLOCK *block,
     oufs_set_inode(inode, DIRECTORY_TYPE, 1, self_block_reference, 2); 
 
     
-    //------initialize Root Directory --------
-    fprintf(stderr,"***** self_inode_reference: %d parent_inode_reference: %d\n", self_inode_reference, parent_inode_reference);
-    
+    //------initialize Root Directory --------    
     block -> next_block = UNALLOCATED_BLOCK;
     block -> content.directory.entry[0].inode_reference = self_inode_reference;
     strcpy(block -> content.directory.entry[0].name, "."); 
@@ -254,6 +275,9 @@ int oufs_find_directory_element(INODE *inode, char *element_name)         //TODO
 int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERENCE *child,
        char *local_name)
 {
+
+  debug = 0;
+
   //test
   if(strlen(path) == 0){
       if(debug){
@@ -385,7 +409,8 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
 
       if(found == 0)
       {
-          fprintf(stderr, "Directory: %s not found!\n", directory_name);
+          if(debug)
+            fprintf(stderr, "Directory: %s not found!\n", directory_name);
           *child = UNALLOCATED_INODE;
           //*parent = UNALLOCATED_INODE;
           return -1;
@@ -424,7 +449,6 @@ int oufs_find_open_bit(unsigned char value)
 
   int one = value;
   int two =  1<<7;
-  fprintf(stderr, "one: %d two: %d\n", one, two);
 
   for(int i = 7; i >= 0; --i)
   {
@@ -449,6 +473,7 @@ int oufs_find_open_bit(unsigned char value)
  */
 int oufs_allocate_new_directory(INODE_REFERENCE parent_reference)
 {
+  debug = 0;
   BLOCK masterBlock;
   // Read the master block
   if(virtual_disk_read_block(MASTER_BLOCK_REFERENCE, &masterBlock) != 0) {
@@ -482,9 +507,6 @@ int oufs_allocate_new_directory(INODE_REFERENCE parent_reference)
 
   INODE_REFERENCE newDirectoryInodeRef = (byte * 8) + (7 - bit);   //check to see if corret
   BLOCK_REFERENCE newBlockReference = masterBlock.content.master.unallocated_front;
-  fprintf(stderr, "new inode reference: %d new Block Reference: %d\n", newDirectoryInodeRef, newBlockReference);
-
-
 
   //get next avaliable free block
   BLOCK newDirectoryBlock;
@@ -505,8 +527,9 @@ int oufs_allocate_new_directory(INODE_REFERENCE parent_reference)
   //clear directory next block
   newDirectoryBlock.next_block = UNALLOCATED_BLOCK;
 
-
-  fprintf(stderr, "Sending child ref: %d parent Ref: %d to oufs_init_directory_structures()\n", newDirectoryInodeRef, parent_reference);
+  if(debug)
+    fprintf(stderr, "Sending child ref: %d parent Ref: %d to oufs_init_directory_structures()\n", newDirectoryInodeRef, parent_reference);
+  
   INODE newDirectoryInode;
   oufs_init_directory_structures(&newDirectoryInode, &newDirectoryBlock, newBlockReference, newDirectoryInodeRef, parent_reference);
 

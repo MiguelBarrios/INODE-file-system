@@ -232,7 +232,7 @@ static int inode_compare_to(const void *d1, const void *d2)
 
 int oufs_list(char *cwd, char *path)
 {
-
+  debug = 0;
   INODE_REFERENCE parentInodeRef;
   INODE_REFERENCE childInodeRef;
 
@@ -344,6 +344,7 @@ int oufs_list(char *cwd, char *path)
  */
 int oufs_mkdir(char *cwd, char *path)             //Casese not yet working:  if dir foo and bar exist in parent foo/bar wont init
 {
+  debug = 0;
   INODE_REFERENCE parrentInodeRef;
   INODE_REFERENCE childInodeRef;
 
@@ -358,21 +359,29 @@ int oufs_mkdir(char *cwd, char *path)             //Casese not yet working:  if 
     return(-1);
   };
 
-  if(ret == 0){
-      fprintf(stderr, "Directory already exists\n");
-      return 0;
-  }
-
-  fprintf(stderr, "parent refference: %d\nChild refference: %d\n", parrentInodeRef, childInodeRef);
-
   INODE parentInode;
   INODE childInode;
 
+
+  //-------------------could be souce of problem --------------------
+  //TODO: condition child must be directory of parent
+
+  /*
   //returns if the Child exists OR the parent does not exist             
   if(childInodeRef != UNALLOCATED_INODE){
       fprintf(stderr, "Child already exist\n");
       return -1;
   }
+
+  
+  if(ret == 0)
+  { 
+     //case where foo bar are dic and foo/bar needs to be implemented
+      fprintf(stderr, "Directory already exists \n");
+      return 0;
+  }
+  */
+  //------------------------------------------------------------------
 
 
   //returns if parent inode is not a directory
@@ -388,8 +397,6 @@ int oufs_mkdir(char *cwd, char *path)             //Casese not yet working:  if 
   }
 
   //-----All conditions met, make new directory----------
-  fprintf(stderr, "----------------\n");
-  fprintf(stderr, "child inode Ref: %d\n", childInodeRef);
 
   BLOCK block;
   if(virtual_disk_read_block(parrentInodeRef, &block) == 0)
@@ -401,14 +408,7 @@ int oufs_mkdir(char *cwd, char *path)             //Casese not yet working:  if 
       if(newDirectoryInodeRef == UNALLOCATED_INODE)
           return -1;
 
-
-      fprintf(stderr, "new directory made inode: %d\n", newDirectoryInodeRef);
-
-
-      //TODO: update parent directory to include new directory
-      fprintf(stderr, "Parent Directory: %d\n", parrentInodeRef);
-
-
+      //---------------update parent directory to include new directory 
       //gets the name of the new directory
       char *fullpath;
       char *directory_name;
@@ -417,8 +417,6 @@ int oufs_mkdir(char *cwd, char *path)             //Casese not yet working:  if 
           directory_name = fullpath;
           fullpath = strtok(NULL, "/");  //Gets next token
       }
-      fprintf(stderr, "directory_name: %s\n", directory_name);
-
       
 
       BLOCK parrentDirectory;
@@ -430,7 +428,6 @@ int oufs_mkdir(char *cwd, char *path)             //Casese not yet working:  if 
       DIRECTORY_ENTRY newEntry;
       strcpy(newEntry.name, directory_name);
       newEntry.inode_reference = newDirectoryInodeRef;
-      fprintf(stderr, "Writing new directory entry at location: %d\n", parentInode.size);
 
       parrentDirectory.content.directory.entry[parentInode.size] = newEntry;
 
@@ -471,16 +468,116 @@ int oufs_mkdir(char *cwd, char *path)             //Casese not yet working:  if 
  */
 int oufs_rmdir(char *cwd, char *path)
 {
-  INODE_REFERENCE parent;
-  INODE_REFERENCE child;
+  INODE_REFERENCE parentInodeRef;
+  INODE_REFERENCE childInodeRef;
   char local_name[MAX_PATH_LENGTH];
 
   // Try to find the inode of the child
-  if(oufs_find_file(cwd, path, &parent, &child, local_name) < -1) {
+  if(oufs_find_file(cwd, path, &parentInodeRef, &childInodeRef, local_name) < -1) {
     return(-4);
   }
 
-  // TODO: complet implementation
+  fprintf(stderr, "Parent Inode ref %d child inode ref %d ", parentInodeRef, childInodeRef);
+
+  //-------------Read in all Blocks---------------
+  BLOCK masterBlock;
+  BLOCK parentBlock;
+  BLOCK childBlock;
+  INODE parentInode;
+  INODE childInode;
+  if(oufs_read_inode_by_reference(parentInodeRef, &parentInode) != 0 ||
+      oufs_read_inode_by_reference(childInodeRef, &childInode) != 0 ||
+      virtual_disk_read_block(parentInode.content, &parentBlock) != 0 ||
+      virtual_disk_read_block(childInode.content, &childBlock) != 0 ||
+      virtual_disk_read_block(MASTER_BLOCK_REFERENCE, &masterBlock))
+  {
+    fprintf(stderr, "Read error");
+    return -1;
+  }
+
+  fprintf(stderr, "Parent initial Values\nInodeRef: %d Block Ref: %d numDirectorer: %d", parentInodeRef, parentInode.content, parentInode.size);
+
+
+  //update masterblock free list
+  oufs_deallocate_block(&masterBlock, childInode.content);
+
+  //Update child inode
+  childInode.type = UNUSED_TYPE;
+  childInode.content = UNALLOCATED_BLOCK;
+  childInode.size = 0;
+
+  //write inode back to disk
+  if(oufs_write_inode_by_reference(childInodeRef, &childInode) != 0){
+      fprintf(stderr, "Write inode error");
+  }
+
+  //update inode allocation table
+  int byte = childInodeRef / 8;
+  int bit = 7 - (childInodeRef % 8);     fprintf(stderr, "update allocation table byte: %d, bit %d\n", byte, bit);
+
+  char num = ~(1 <<bit);
+  fprintf(stderr, "num: %d\n", num);
+
+  char updatedValue = masterBlock.content.master.inode_allocated_flag[byte] & num;
+  masterBlock.content.master.inode_allocated_flag[byte] = updatedValue;
+
+  //write master block back to disk
+  if(virtual_disk_write_block(MASTER_BLOCK_REFERENCE, &masterBlock) != 0){
+      fprintf(stderr, "Write master block to disk error\n");
+  }
+
+
+  //remove dealocated dictenatry from parent directory
+  for(int i = 0; i < parentInode.size; ++i){
+      fprintf(stderr, "Directory entry %d: %s\n", i, parentBlock.content.directory.entry[i].name);
+      /*
+      DIRECTORY_ENTRY entry = parentBlock.content.directory.entry[i];
+      fprintf(stderr, "compareing Entry ref: %d, string: %s\n", entry.inode_reference, entry.name);
+      if(entry.inode_reference == childInodeRef)
+      {
+          parentBlock.content.directory.entry[i].inode_reference = UNALLOCATED_INODE;
+          strcpy(parentBlock.content.directory.entry[i].name, "");
+          fprintf(stderr, "Entry removed\n");
+          break;
+      }
+      */
+  }
+
+  //Write parent block back to disk
+  fprintf(stderr, "Parent inode content: %d\n", parentInode.content);
+  if(virtual_disk_write_block(parentInode.content, &parentBlock) != 0){
+      fprintf(stderr, "Write to block error\n");
+  }
+
+
+
+
+
+  //TODO: complet implementation, given directory exists
+  /*
+        get directory inode
+        get directory block
+        remove name from parente directory entry
+        set directory entry to unalocated inode
+        clear directory block   
+        set directory block next block to unalocated block
+        add block to the end of free list
+        update inode allocation table
+        set directory inode: type = unsused type, content = UNALLOCATED_BLOCK
+        decrement parent inode size
+  */
+
+
+
+
+
+
+
+
+
+
+
+
 
 
   // Success
