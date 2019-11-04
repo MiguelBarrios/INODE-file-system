@@ -91,6 +91,7 @@ void oufs_init_directory_structures(INODE *inode, BLOCK *block,
 
     
     //------initialize Root Directory --------
+    fprintf(stderr,"***** self_inode_reference: %d parent_inode_reference: %d\n", self_inode_reference, parent_inode_reference);
     
     block -> next_block = UNALLOCATED_BLOCK;
     block -> content.directory.entry[0].inode_reference = self_inode_reference;
@@ -368,9 +369,9 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
                                 //Directry that we are looking for
                                 if(virtual_disk_read_block(curInode.content, &block2) == 0)
                                 {
-                                    fprintf(stderr,"It got here\n");
+                                    fprintf(stderr, "");
                                     grandparent = *parent;
-                                    *parent = block2.content.directory.entry[1].inode_reference;
+                                    *parent = entry.inode_reference;
                                     *child = block2.content.directory.entry[0].inode_reference;
                                     found = 1;
                                 }
@@ -504,6 +505,8 @@ int oufs_allocate_new_directory(INODE_REFERENCE parent_reference)
   //clear directory next block
   newDirectoryBlock.next_block = UNALLOCATED_BLOCK;
 
+
+  fprintf(stderr, "Sending child ref: %d parent Ref: %d to oufs_init_directory_structures()\n", newDirectoryInodeRef, parent_reference);
   INODE newDirectoryInode;
   oufs_init_directory_structures(&newDirectoryInode, &newDirectoryBlock, newBlockReference, newDirectoryInodeRef, parent_reference);
 

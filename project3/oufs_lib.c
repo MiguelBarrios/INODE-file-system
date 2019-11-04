@@ -232,84 +232,94 @@ static int inode_compare_to(const void *d1, const void *d2)
 
 int oufs_list(char *cwd, char *path)
 {
-  INODE_REFERENCE parent;
-  INODE_REFERENCE child;
 
-  debug = 1;
-
-  if(debug)
-    fprintf(stderr, "cwd: %s\npath: %s\n", cwd, path);
-
+  INODE_REFERENCE parentInodeRef;
+  INODE_REFERENCE childInodeRef;
 
   // Look up the inodes for the parent and child
-  int ret = oufs_find_file(cwd, path, &parent, &child, NULL);
-
-  if(ret == -2){
-      fprintf(stderr, "no directorys in file");
-      return -1;
-  }
-
-
+  int ret = oufs_find_file(cwd, path, &parentInodeRef, &childInodeRef, NULL);
 
   // Did we find the specified file?
-  if(ret == 0 && child != UNALLOCATED_INODE)
+  if(ret == 0 && childInodeRef != UNALLOCATED_INODE) 
   {
-    // Element found: read the inode
-    INODE inode;
-    if(oufs_read_inode_by_reference(child, &inode) != 0) 
-      return(-1);
+      INODE parentInode;
+      INODE childInode;
+      BLOCK parentBlock;
+      BLOCK childBlock;
 
-    if(debug)
-      fprintf(stderr, "\tDEBUG: Child found (type=%s).\n",  INODE_TYPE_NAME[inode.type]);
+      //Read all block and inodes
+      if(oufs_read_inode_by_reference(parentInodeRef, &parentInode) != 0 ||
+         oufs_read_inode_by_reference(childInodeRef, &childInode) != 0 ||
+         virtual_disk_read_block(parentInode.content, &parentBlock) != 0 ||
+         virtual_disk_read_block(childInode.content, &childBlock) != 0)
+      {
+          fprintf(stderr, "Read error\n");
+          return -1;
+      }
 
-    // TODO: complete implementation
+      if(debug)
+      {
+          fprintf(stderr, "\tDEBUG: Child found (type=%s).\n",  INODE_TYPE_NAME[childInode.type]);
+          fprintf(stderr, "\tDEBUG: Parent found (type=%s).\n",  INODE_TYPE_NAME[parentInode.type]);
+      }
 
-    INODE node;
-    if(oufs_read_inode_by_reference(child, &node) != 0)
-    {
-        fprintf(stderr, "Read inode Error\n");
-    }
+      //CHECK:  parent and child are of type directory
+      if(parentInode.type != DIRECTORY_TYPE || childInode.type != DIRECTORY_TYPE){
+          fprintf(stderr, "parent or child not of type directory\n");
+          return -1;
+      }
+
+      //CHECK:  is child a directory of parent
+      int isSubdirectory = 0;
+      for(int i = 0; i < parentInode.size && isSubdirectory == 0; ++i)
+      {
+          INODE_REFERENCE entryRef = parentBlock.content.directory.entry[i].inode_reference;
+          if(entryRef == childInodeRef)
+              isSubdirectory = 1;
+      }
+
+      if(isSubdirectory == 0){
+          fprintf(stderr, "Child is not a directory of parent\n");
+          return -1;
+      }
+
+      //Child is a directory of parent display child
 
 
-    BLOCK block;
-    if(virtual_disk_read_block(node.content, &block) != 0)
-    {
-        fprintf(stderr, "Read Error\n");
-    }
+      DIRECTORY_ENTRY names[childInode.size];
 
-    if(debug)
-      fprintf(stderr, "Num directories %d\n", inode.size);
+      DIRECTORY_BLOCK directory = childBlock.content.directory;
+      int count = 0;
+      for(int i = 0; i < N_DIRECTORY_ENTRIES_PER_BLOCK; ++i)
+      {
+          if(directory.entry[i].inode_reference != UNALLOCATED_INODE)
+          {
+              names[count] = directory.entry[i];
+              ++count;
+          }
+      }
 
-    DIRECTORY_ENTRY names[inode.size];
+      qsort(names, count, sizeof(DIRECTORY_ENTRY),inode_compare_to);
 
-    DIRECTORY_BLOCK directory = block.content.directory;
-    int count = 0;
-    for(int i = 0; i < N_DIRECTORY_ENTRIES_PER_BLOCK; ++i)
-    {
-        if(directory.entry[i].inode_reference != UNALLOCATED_INODE)
-        {
-          names[count] = directory.entry[i];
-          ++count;
-        }
-    }
+      for(int i = 0; i < count; ++i)
+      {
+         fprintf(stderr, "%s/\n", names[i].name);
+      }
 
-    qsort(names, count, sizeof(DIRECTORY_ENTRY),inode_compare_to);
-
-    for(int i = 0; i < count; ++i)
-    {
-        fprintf(stderr, "%s/\n", names[i].name);
-    }
-
-  }else 
-  {
-    // Did not find the specified file/directory
-    fprintf(stderr, "Not found\n");
-    if(debug){
-      fprintf(stderr, "\tDEBUG: (%d)\n", ret);
-    }
+      return 0;
   }
-  // Done: return the status from the search
-  return(ret);
+  else
+  {
+      // Did not find the specified file/directory
+      fprintf(stderr, "Not found\n");
+      if(debug)
+          fprintf(stderr, "\tDEBUG: (%d)\n", ret);
+  }
+
+
+  //-1 if child not found, 0 if parent and child was found, -2 if no directory in file, -x error
+  return -1;
+
 }
 
 
@@ -332,17 +342,17 @@ int oufs_list(char *cwd, char *path)
  *         -x if error
  *
  */
-int oufs_mkdir(char *cwd, char *path)             //Case not working where foo/barr is given
+int oufs_mkdir(char *cwd, char *path)             //Casese not yet working:  if dir foo and bar exist in parent foo/bar wont init
 {
-  INODE_REFERENCE parent;
-  INODE_REFERENCE child;
+  INODE_REFERENCE parrentInodeRef;
+  INODE_REFERENCE childInodeRef;
 
   // Name of a directory within another directory
   char local_name[MAX_PATH_LENGTH];
   int ret;
 
   // Attempt to find the specified directory
-  if((ret = oufs_find_file(cwd, path, &parent, &child, local_name)) < -1) {
+  if((ret = oufs_find_file(cwd, path, &parrentInodeRef, &childInodeRef, local_name)) < -1) {
     if(debug)
       fprintf(stderr, "oufs_mkdir(): ret = %d\n", ret);
     return(-1);
@@ -353,20 +363,20 @@ int oufs_mkdir(char *cwd, char *path)             //Case not working where foo/b
       return 0;
   }
 
-  fprintf(stderr, "parent refference: %d\nChild refference: %d\n", parent, child);
+  fprintf(stderr, "parent refference: %d\nChild refference: %d\n", parrentInodeRef, childInodeRef);
 
   INODE parentInode;
   INODE childInode;
 
   //returns if the Child exists OR the parent does not exist             
-  if(child != UNALLOCATED_INODE){
+  if(childInodeRef != UNALLOCATED_INODE){
       fprintf(stderr, "Child already exist\n");
       return -1;
   }
 
 
   //returns if parent inode is not a directory
-  if(oufs_read_inode_by_reference(parent, &parentInode) != 0 || parentInode.type != DIRECTORY_TYPE){
+  if(oufs_read_inode_by_reference(parrentInodeRef, &parentInode) != 0 || parentInode.type != DIRECTORY_TYPE){
       fprintf(stderr, "read inode erro\n");
       return -1;
   }
@@ -378,13 +388,15 @@ int oufs_mkdir(char *cwd, char *path)             //Case not working where foo/b
   }
 
   //-----All conditions met, make new directory----------
+  fprintf(stderr, "----------------\n");
+  fprintf(stderr, "child inode Ref: %d\n", childInodeRef);
 
   BLOCK block;
-  if(virtual_disk_read_block(MASTER_BLOCK_REFERENCE, &block) == 0)
+  if(virtual_disk_read_block(parrentInodeRef, &block) == 0)
   {
-      MASTER_BLOCK masterblock = block.content.master;
+      //MASTER_BLOCK masterblock = block.content.master;
 
-      INODE_REFERENCE newDirectoryInodeRef = oufs_allocate_new_directory(parent);
+      INODE_REFERENCE newDirectoryInodeRef = oufs_allocate_new_directory(parrentInodeRef);
 
       if(newDirectoryInodeRef == UNALLOCATED_INODE)
           return -1;
@@ -394,7 +406,7 @@ int oufs_mkdir(char *cwd, char *path)             //Case not working where foo/b
 
 
       //TODO: update parent directory to include new directory
-      fprintf(stderr, "Parent Directory: %d\n", parent);
+      fprintf(stderr, "Parent Directory: %d\n", parrentInodeRef);
 
 
       //gets the name of the new directory
@@ -418,6 +430,7 @@ int oufs_mkdir(char *cwd, char *path)             //Case not working where foo/b
       DIRECTORY_ENTRY newEntry;
       strcpy(newEntry.name, directory_name);
       newEntry.inode_reference = newDirectoryInodeRef;
+      fprintf(stderr, "Writing new directory entry at location: %d\n", parentInode.size);
 
       parrentDirectory.content.directory.entry[parentInode.size] = newEntry;
 
@@ -425,7 +438,7 @@ int oufs_mkdir(char *cwd, char *path)             //Case not working where foo/b
       parentInode.size = parentInode.size + 1;
 
       //done with parent inode
-      if(oufs_write_inode_by_reference(parent, &parentInode) != 0){
+      if(oufs_write_inode_by_reference(parrentInodeRef, &parentInode) != 0){
           fprintf(stderr, "Write inode by ref error\n");
       }
 
