@@ -465,9 +465,28 @@ int oufs_mkdir(char *cwd, char *path)             //Casese not yet working:  if 
  * @return 0 if success
  *         -x if error
  *
+   //TODO: complet implementation, given directory exists
+        get directory inode
+        get directory block
+        remove name from parente directory entry
+        set directory entry to unalocated inode
+        clear directory block   
+        set directory block next block to unalocated block
+        add block to the end of free list
+        update inode allocation table
+        set directory inode: type = unsused type, content = UNALLOCATED_BLOCK
+        decrement parent inode size
+
  */
 int oufs_rmdir(char *cwd, char *path)
 {
+
+  if(strcmp(path, ".") == 0 || strcmp(path, "..") == 0)
+  {
+      fprintf(stderr, "Illegal to delete . or ..\n");
+      return -1;
+  }
+
   INODE_REFERENCE parentInodeRef;
   INODE_REFERENCE childInodeRef;
   char local_name[MAX_PATH_LENGTH];
@@ -494,6 +513,12 @@ int oufs_rmdir(char *cwd, char *path)
     fprintf(stderr, "Read error");
     return -1;
   }
+
+  if(childInode.size > 2){
+    fprintf(stderr, "Directory not empty\n");
+    return -1;
+  }
+
 
 
   //update masterblock free list
@@ -549,36 +574,6 @@ int oufs_rmdir(char *cwd, char *path)
   if(oufs_write_inode_by_reference(parentInodeRef, &parentInode) != 0){
       fprintf(stderr, "Write inode by ref error\n");
   }
-
-
-
-
-
-  //TODO: complet implementation, given directory exists
-  /*
-        get directory inode
-        get directory block
-        remove name from parente directory entry
-        set directory entry to unalocated inode
-        clear directory block   
-        set directory block next block to unalocated block
-        add block to the end of free list
-        update inode allocation table
-        set directory inode: type = unsused type, content = UNALLOCATED_BLOCK
-        decrement parent inode size
-  */
-
-
-
-
-
-
-
-
-
-
-
-
 
 
   // Success
