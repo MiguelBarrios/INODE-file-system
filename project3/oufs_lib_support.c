@@ -318,46 +318,8 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
     fprintf(stderr, "\tinitial values grandparent %d, parent %d, child %d\n", grandparent, *parent, *child);
   }
 
-  
-  //----------------newCode-------------
-  BLOCK block;
-  if(virtual_disk_read_block(MASTER_BLOCK_REFERENCE, &block) != 0){
-    fprintf(stderr, "oufs_lib_support -> oufs_find_file() ERROR\n");
-  }
-
-  unsigned char *inodesTable = block.content.master.inode_allocated_flag;       
-  int numAlocatedInodes = 0;
-  INODE_REFERENCE allocatedInodeRef[(N_INODES >>3)];
-
-  for(int byte = 0; byte < (N_INODES >>3); ++byte)
-  {
-      int c = (int)inodesTable[byte];
-      for(int bit = 7, compare = 0x80; bit >= 0 && c != 0; --bit)
-      {
-          if((c & compare) == compare)  //INDOE is allocated
-          {
-              allocatedInodeRef[numAlocatedInodes] = byte + (7 - bit);
-              ++numAlocatedInodes;
-          }
-          compare = compare >> 1;
-      }
-  }
-
-
-  if(debug){
-      fprintf(stderr, "Number of Alocated inodes: %d", numAlocatedInodes);
-  }
-  if(numAlocatedInodes == 0){
-      *parent = UNALLOCATED_INODE;
-      *child = UNALLOCATED_INODE;
-      return -2;
-  }
-
-
-
-  //-------------End newCode-----------
-
-    // Parse the full path
+  INODE_REFERENCE currentDirectoryInodeRef = ROOT_DIRECTORY_INODE;
+      // Parse the full path
   char *directory_name;
   directory_name = strtok(full_path, "/");
   while(directory_name != NULL)
@@ -368,49 +330,57 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
       if(debug){
         fprintf(stderr, "\tDEBUG: Directory: %s\n", directory_name);
       }
-    
-    //-------------TODO-------------------
-      //need to find directory inodes
-      int found = 0;
-      for(int j = 0; j < numAlocatedInodes && found == 0; ++j)
-      {
 
-          INODE parentInode;
-          if((oufs_read_inode_by_reference(allocatedInodeRef[j], &parentInode) == 0) && (parentInode.type == DIRECTORY_TYPE))
+      INODE curDirectoryInode;
+      BLOCK curDirectory;
+      if(oufs_read_inode_by_reference(currentDirectoryInodeRef, &curDirectoryInode) == 0 && curDirectoryInode.type == DIRECTORY_TYPE && 
+         virtual_disk_read_block(curDirectoryInode.content, &curDirectory) == 0)
+      {
+          //look for first directory
+          int found = 0;
+          DIRECTORY_ENTRY entry;
+          for(int i = 0; i < curDirectoryInode.size && found == 0; ++i)
           {
-                fprintf(stderr,"Current inode Ref: %d\n", allocatedInodeRef[j]);
-                BLOCK parentDirectoryBlock;
-                if(virtual_disk_read_block(parentInode.content, &parentDirectoryBlock) == 0)
-                {
-                    for(int i = 0; i < parentInode.size && found == 0; ++i)
-                    {
-                        DIRECTORY_ENTRY entry = parentDirectoryBlock.content.directory.entry[i];
+              entry = curDirectory.content.directory.entry[i];
+              if((entry.inode_reference != UNALLOCATED_INODE) && (strcmp(entry.name, directory_name) == 0))
+              {
+                  //Directory found
+                  fprintf(stderr, "Arrigning grandparent %d parent %d Child %d\n", *parent, *child, entry.inode_reference);
+                  grandparent = *parent;
+                  *parent = *child;
+                  *child = entry.inode_reference;
+                  found = 1;
+              }
+          }
 
-                        fprintf(stderr, "Compareing %s to %s\n", entry.name, directory_name);
-                        if((entry.inode_reference != UNALLOCATED_INODE) && (strcmp(entry.name, directory_name) == 0))
-                        {
-                            //Parent directory found
-                            fprintf(stderr, "Arrigning grandparent %d parent %d Child %d\n", *parent, allocatedInodeRef[j], entry.inode_reference);
-                            grandparent = *parent;
-                            *parent = allocatedInodeRef[j];
-                            *child = entry.inode_reference;
-                            found = 1;
-                        }
-                    }
-                }else{fprintf(stderr, "Read error \n"); }
-          }else{fprintf(stderr, "Read error Error");}
+          if(found == 0)//Directory not found
+          {
+              if(*child == 0)
+              {
+                  *child = UNALLOCATED_INODE;
+                  return -1;
+              }
+              else
+              {
+                  grandparent = *parent;
+                  *parent = *child;
+                  *child = UNALLOCATED_INODE;
+                  fprintf(stderr, "Arrigning grandparent %d parent %d Child %d\n", grandparent, *parent, *child);
+                  return -1;
+              }
+          }
+          else
+          {
+              currentDirectoryInodeRef = entry.inode_reference;
+          }
 
       }
-
-      if(found == 0)
+      else
       {
-          if(debug)
-            fprintf(stderr, "Directory: %s not found!\n", directory_name);
-          *child = UNALLOCATED_INODE;
-          //*parent = UNALLOCATED_INODE;
-          return -1;
+          fprintf(stderr,"Read Error\n"); return -5;
       }
-      //case where directory not found 
+
+      fprintf(stderr, "looking for directory: %s\n", directory_name);
       directory_name = strtok(NULL, "/");  //Gets next token
   }
 
