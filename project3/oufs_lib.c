@@ -268,6 +268,8 @@ int oufs_list(char *cwd, char *path)
           fprintf(stderr, "\tDEBUG: Parent found (type=%s).\n",  INODE_TYPE_NAME[parentInode.type]);
       }
 
+
+      /*  Might not be needed because ou find file takes care of it
       //CHECK:  parent and child are of type directory
       if(parentInode.type != DIRECTORY_TYPE || childInode.type != DIRECTORY_TYPE){
           fprintf(stderr, "parent or child not of type directory\n");
@@ -276,7 +278,7 @@ int oufs_list(char *cwd, char *path)
 
       //CHECK:  is child a directory of parent
       int isSubdirectory = 0;
-      for(int i = 0; i < parentInode.size && isSubdirectory == 0; ++i)
+      for(int i = 0; i < N_DIRECTORY_ENTRIES_PER_BLOCK && isSubdirectory == 0; ++i)
       {
           INODE_REFERENCE entryRef = parentBlock.content.directory.entry[i].inode_reference;
           if(entryRef == childInodeRef)
@@ -285,8 +287,9 @@ int oufs_list(char *cwd, char *path)
 
       if(isSubdirectory == 0){
           fprintf(stderr, "Child is not a directory of parent\n");
-          //return -1;        ?????
+          return -1;                       //remove this line if it still dosent work
       }
+      */
 
       
       qsort(&childBlock.content.directory.entry[0], N_DIRECTORY_ENTRIES_PER_BLOCK, sizeof(DIRECTORY_ENTRY), inode_compare_to);
