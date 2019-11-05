@@ -477,7 +477,7 @@ int oufs_rmdir(char *cwd, char *path)
     return(-4);
   }
 
-  fprintf(stderr, "Parent Inode ref %d child inode ref %d ", parentInodeRef, childInodeRef);
+  fprintf(stderr, "Parent Inode ref %d child inode ref %d\n", parentInodeRef, childInodeRef);
 
   //-------------Read in all Blocks---------------
   BLOCK masterBlock;
@@ -494,8 +494,6 @@ int oufs_rmdir(char *cwd, char *path)
     fprintf(stderr, "Read error");
     return -1;
   }
-
-  fprintf(stderr, "Parent initial Values\nInodeRef: %d Block Ref: %d numDirectorer: %d", parentInodeRef, parentInode.content, parentInode.size);
 
 
   //update masterblock free list
@@ -529,10 +527,7 @@ int oufs_rmdir(char *cwd, char *path)
 
   //remove dealocated dictenatry from parent directory
   for(int i = 0; i < parentInode.size; ++i){
-      fprintf(stderr, "Directory entry %d: %s\n", i, parentBlock.content.directory.entry[i].name);
-      /*
       DIRECTORY_ENTRY entry = parentBlock.content.directory.entry[i];
-      fprintf(stderr, "compareing Entry ref: %d, string: %s\n", entry.inode_reference, entry.name);
       if(entry.inode_reference == childInodeRef)
       {
           parentBlock.content.directory.entry[i].inode_reference = UNALLOCATED_INODE;
@@ -540,13 +535,19 @@ int oufs_rmdir(char *cwd, char *path)
           fprintf(stderr, "Entry removed\n");
           break;
       }
-      */
+      
   }
 
   //Write parent block back to disk
-  fprintf(stderr, "Parent inode content: %d\n", parentInode.content);
   if(virtual_disk_write_block(parentInode.content, &parentBlock) != 0){
       fprintf(stderr, "Write to block error\n");
+  }
+
+
+  parentInode.size = parentInode.size - 1;
+
+  if(oufs_write_inode_by_reference(parentInodeRef, &parentInode) != 0){
+      fprintf(stderr, "Write inode by ref error\n");
   }
 
 
