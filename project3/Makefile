@@ -1,10 +1,6 @@
 all:	 ouFormat inspect oufs_ls oufs_mkdir oufs_rmdir oufs_stats
 reset:	clean  all
 
-tmp: ls
-
-
-
 ouFormat:	oufs_format.c 
 	gcc oufs_format.c oufs_lib.c oufs_lib_support.c storage.c  virtual_disk.c -o oufs_format -lm
 

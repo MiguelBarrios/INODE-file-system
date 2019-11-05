@@ -38,7 +38,6 @@ int oufs_deallocate_block(BLOCK *master_block, BLOCK_REFERENCE block_reference)
     // No blocks on the free list.  Both pointers point to this block now
     master_block->content.master.unallocated_front = master_block->content.master.unallocated_end =
       block_reference;
-
   }
   else
   {
@@ -102,16 +101,11 @@ void oufs_init_directory_structures(INODE *inode, BLOCK *block,
 				    INODE_REFERENCE self_inode_reference,
 				    INODE_REFERENCE parent_inode_reference)
 {
-
-    debug = 0;
-
+ 
     memset(block, 0, BLOCK_SIZE);  //RESET BLOCK
 
-    // TODO
     //Initialize root directory inode
-    //oufs_set_inode(INODE *inode, INODE_TYPE type, int n_references, BLOCK_REFERENCE content, int size)
     oufs_set_inode(inode, DIRECTORY_TYPE, 1, self_block_reference, 2); 
-
     
     //------initialize Root Directory --------    
     block -> next_block = UNALLOCATED_BLOCK;
@@ -172,7 +166,6 @@ int oufs_write_inode_by_reference(INODE_REFERENCE i, INODE *inode)
   if(debug)
     fprintf(stderr, "\tDEBUG: Writing inode %d\n", i);
 
-  //TODO
   //get block, where inode is housed
   BLOCK_REFERENCE blockIndex = (unsigned short)(i / N_INODES_PER_BLOCK) + 1;
   BLOCK block;
@@ -243,7 +236,7 @@ int oufs_find_directory_element(INODE *inode, char *element_name)         //TODO
   {
       DIRECTORY_ENTRY entry = block.content.directory.entry[i];
       if(entry.inode_reference != UNALLOCATED_INODE){
-        if(strcmp(element_name, (const char *)&entry.name) == 0){           //TODO check to see if works
+        if(strcmp(element_name, (const char *)&entry.name) == 0){         
           return entry.inode_reference;
         }
       }
@@ -353,7 +346,8 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
                   grandparent = *parent;
                   *parent = *child;
                   *child = UNALLOCATED_INODE;
-                  fprintf(stderr, "Arrigning grandparent %d parent %d Child %d\n", grandparent, *parent, *child);
+                  if(debug)
+                    fprintf(stderr, "Assigning grandparent %d parent %d Child %d\n", grandparent, *parent, *child);
                   return -1;
               }
           }
@@ -397,17 +391,16 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
 
 int oufs_find_open_bit(unsigned char value)
 {
-
   int one = value;
   int two =  1<<7;
 
   for(int i = 7; i >= 0; --i)
   {
-     if((one & two) != two){
+      if((one & two) != two){
         return i;
-     }
+      }
 
-      two = two >> 1;
+      two = two >> 1; 
   }
 
   // Not found
@@ -454,7 +447,6 @@ int oufs_allocate_new_directory(INODE_REFERENCE parent_reference)
   unsigned char allocatedBit = (128 >>(7 - bit));                                            
   unsigned char updatedBits = currentlyAllocatedBits | allocatedBit;                                             
   masterBlock.content.master.inode_allocated_flag[byte] = updatedBits;
-  //fprintf(stderr, "current: %d  open: %d updatedBits %d\n", currentlyAllocatedBits, allocatedBit, updatedBits);
 
   INODE_REFERENCE newDirectoryInodeRef = (byte * 8) + (7 - bit);   //check to see if corret
   BLOCK_REFERENCE newBlockReference = masterBlock.content.master.unallocated_front;
@@ -474,17 +466,12 @@ int oufs_allocate_new_directory(INODE_REFERENCE parent_reference)
       fprintf(stderr, "Write master block error\n");
   }
 
-
   //clear directory next block
   newDirectoryBlock.next_block = UNALLOCATED_BLOCK;
-
-  if(debug)
-    fprintf(stderr, "Sending child ref: %d parent Ref: %d to oufs_init_directory_structures()\n", newDirectoryInodeRef, parent_reference);
   
   INODE newDirectoryInode;
   oufs_init_directory_structures(&newDirectoryInode, &newDirectoryBlock, newBlockReference, newDirectoryInodeRef, parent_reference);
 
-  //---Test code, will attemt to brign all writing to this statge
 
   //write new Directory back to disk
   if(virtual_disk_write_block(newBlockReference, &newDirectoryBlock)  == -1){
