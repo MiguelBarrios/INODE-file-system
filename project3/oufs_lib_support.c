@@ -276,8 +276,6 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
        char *local_name)
 {
 
-  debug = 0;
-
   //test
   if(strlen(path) == 0){
       if(debug){

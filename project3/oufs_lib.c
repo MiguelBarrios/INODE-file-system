@@ -194,6 +194,10 @@ static int inode_compare_to(const void *d1, const void *d2)
   DIRECTORY_ENTRY* e1 = (DIRECTORY_ENTRY*) d1;
   DIRECTORY_ENTRY* e2 = (DIRECTORY_ENTRY*) d2;
 
+  if(e1 -> inode_reference == UNALLOCATED_INODE && e2 -> inode_reference == UNALLOCATED_INODE){
+      return 0;
+  }
+
 
   if(e1 -> inode_reference == UNALLOCATED_INODE && e2 -> inode_reference != UNALLOCATED_INODE){
       return -1;
@@ -233,6 +237,7 @@ static int inode_compare_to(const void *d1, const void *d2)
 int oufs_list(char *cwd, char *path)
 {
   debug = 0;
+
   INODE_REFERENCE parentInodeRef;
   INODE_REFERENCE childInodeRef;
 
@@ -283,27 +288,17 @@ int oufs_list(char *cwd, char *path)
           return -1;
       }
 
-      //Child is a directory of parent display child
+      
+      qsort(&childBlock.content.directory.entry[0], N_DIRECTORY_ENTRIES_PER_BLOCK, sizeof(DIRECTORY_ENTRY), inode_compare_to);
 
 
-      DIRECTORY_ENTRY names[childInode.size];
-
-      DIRECTORY_BLOCK directory = childBlock.content.directory;
-      int count = 0;
       for(int i = 0; i < N_DIRECTORY_ENTRIES_PER_BLOCK; ++i)
       {
-          if(directory.entry[i].inode_reference != UNALLOCATED_INODE)
+          DIRECTORY_ENTRY entry = childBlock.content.directory.entry[i];
+          if(entry.inode_reference != UNALLOCATED_INODE)
           {
-              names[count] = directory.entry[i];
-              ++count;
+             printf("%s/\n", entry.name);
           }
-      }
-
-      qsort(names, count, sizeof(DIRECTORY_ENTRY),inode_compare_to);
-
-      for(int i = 0; i < count; ++i)
-      {
-         fprintf(stderr, "%s/\n", names[i].name);
       }
 
       return 0;
@@ -321,10 +316,6 @@ int oufs_list(char *cwd, char *path)
   return -1;
 
 }
-
-
-
-
 
 
 ///////////////////////////////////
@@ -361,28 +352,6 @@ int oufs_mkdir(char *cwd, char *path)             //Casese not yet working:  if 
 
   INODE parentInode;
   INODE childInode;
-
-
-  //-------------------could be souce of problem --------------------
-  //TODO: condition child must be directory of parent
-
-  /*
-  //returns if the Child exists OR the parent does not exist             
-  if(childInodeRef != UNALLOCATED_INODE){
-      fprintf(stderr, "Child already exist\n");
-      return -1;
-  }
-
-  
-  if(ret == 0)
-  { 
-     //case where foo bar are dic and foo/bar needs to be implemented
-      fprintf(stderr, "Directory already exists \n");
-      return 0;
-  }
-  */
-  //------------------------------------------------------------------
-
 
   //returns if parent inode is not a directory
   if(oufs_read_inode_by_reference(parrentInodeRef, &parentInode) != 0 || parentInode.type != DIRECTORY_TYPE){
