@@ -29,11 +29,25 @@ pipes:
 clean:
 	rm -f oufs_format oufs_inspect oufs_ls  oufs_mkdir  oufs_rmdir  oufs_stats *.o
 
-rr:	clean all
+test1:	clean all
 	./oufs_format
-	./oufs_ls
 	./oufs_mkdir foo
+	./oufs_mkdir foo/bar
+	./oufs_mkdir foo/baz
+	./oufs_mkdir foo/bob
 	./oufs_ls
+	./oufs_ls foo
+	./oufs_rmdir foo/baz
+	./oufs_rmdir foo/bar
+	./oufs_rmdir foo/bob
+
+test2: clean all
+	./oufs_format
+	./oufs_mkdir foo
+	./oufs_mkdir foo/bar
+	./oufs_mkdir foo/baz
+	./oufs_mkdir foo/bob
+
 
 
 zip:

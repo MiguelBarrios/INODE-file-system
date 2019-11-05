@@ -329,6 +329,8 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
         fprintf(stderr, "\tDEBUG: Directory: %s\n", directory_name);
       }
 
+      fprintf(stderr, "Directory being searched %d\n", currentDirectoryInodeRef);
+
       INODE curDirectoryInode;
       BLOCK curDirectory;
       if(oufs_read_inode_by_reference(currentDirectoryInodeRef, &curDirectoryInode) == 0 && curDirectoryInode.type == DIRECTORY_TYPE && 
@@ -337,9 +339,11 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
           //look for first directory
           int found = 0;
           DIRECTORY_ENTRY entry;
-          for(int i = 0; i < curDirectoryInode.size && found == 0; ++i)
+          for(int i = 0; i < N_DIRECTORY_ENTRIES_PER_BLOCK && found == 0; ++i)
           {
               entry = curDirectory.content.directory.entry[i];
+
+              fprintf(stderr, "comparing %s to %s\n", directory_name, entry.name);
               if((entry.inode_reference != UNALLOCATED_INODE) && (strcmp(entry.name, directory_name) == 0))
               {
                   //Directory found
@@ -370,6 +374,7 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
           else
           {
               currentDirectoryInodeRef = entry.inode_reference;
+
           }
 
       }

@@ -285,7 +285,7 @@ int oufs_list(char *cwd, char *path)
 
       if(isSubdirectory == 0){
           fprintf(stderr, "Child is not a directory of parent\n");
-          return -1;
+          //return -1;        ?????
       }
 
       
@@ -398,7 +398,15 @@ int oufs_mkdir(char *cwd, char *path)             //Casese not yet working:  if 
       strcpy(newEntry.name, directory_name);
       newEntry.inode_reference = newDirectoryInodeRef;
 
-      parrentDirectory.content.directory.entry[parentInode.size] = newEntry;
+
+      for(int i = 2; i < N_DIRECTORY_ENTRIES_PER_BLOCK; ++i)
+      {
+          if(parrentDirectory.content.directory.entry[i].inode_reference == UNALLOCATED_INODE)
+          {
+              parrentDirectory.content.directory.entry[i] = newEntry;
+              break;
+          }
+      }
 
       //Update parent inode size
       parentInode.size = parentInode.size + 1;
@@ -450,9 +458,10 @@ int oufs_mkdir(char *cwd, char *path)             //Casese not yet working:  if 
 int oufs_rmdir(char *cwd, char *path)
 {
 
-  if(strcmp(path, ".") == 0 || strcmp(path, "..") == 0)
+  fprintf(stderr, "Attempting to remove Directory %s", path);
+  if(strcmp(path, ".") == 0 || strcmp(path, "..") == 0 || strcmp(path, "/") == 0)
   {
-      fprintf(stderr, "Illegal to delete . or ..\n");
+      fprintf(stderr, "Illegal to delete . or .. or /\n");
       return -1;
   }
 
@@ -461,8 +470,9 @@ int oufs_rmdir(char *cwd, char *path)
   char local_name[MAX_PATH_LENGTH];
 
   // Try to find the inode of the child
-  if(oufs_find_file(cwd, path, &parentInodeRef, &childInodeRef, local_name) < -1) {
-    return(-4);
+  if(oufs_find_file(cwd, path, &parentInodeRef, &childInodeRef, local_name) != 0) {
+    fprintf(stderr, "rmdir failed: Directory %s not found\n", path);
+    return -1;
   }
 
   fprintf(stderr, "Parent Inode ref %d child inode ref %d\n", parentInodeRef, childInodeRef);
@@ -488,8 +498,6 @@ int oufs_rmdir(char *cwd, char *path)
     return -1;
   }
 
-
-
   //update masterblock free list
   oufs_deallocate_block(&masterBlock, childInode.content);
 
@@ -505,7 +513,7 @@ int oufs_rmdir(char *cwd, char *path)
 
   //update inode allocation table
   int byte = childInodeRef / 8;
-  int bit = 7 - (childInodeRef % 8);     fprintf(stderr, "update allocation table byte: %d, bit %d\n", byte, bit);
+  int bit = 7 - (childInodeRef % 8);  
 
   char num = ~(1 <<bit);
   fprintf(stderr, "num: %d\n", num);
@@ -520,8 +528,10 @@ int oufs_rmdir(char *cwd, char *path)
 
 
   //remove dealocated dictenatry from parent directory
-  for(int i = 0; i < parentInode.size; ++i){
+  for(int i = 0; i < N_DIRECTORY_ENTRIES_PER_BLOCK; ++i)
+  {
       DIRECTORY_ENTRY entry = parentBlock.content.directory.entry[i];
+
       if(entry.inode_reference == childInodeRef)
       {
           parentBlock.content.directory.entry[i].inode_reference = UNALLOCATED_INODE;
