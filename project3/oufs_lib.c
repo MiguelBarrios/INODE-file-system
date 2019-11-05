@@ -241,6 +241,8 @@ int oufs_list(char *cwd, char *path)
   INODE_REFERENCE parentInodeRef;
   INODE_REFERENCE childInodeRef;
 
+
+
   // Look up the inodes for the parent and child
   int ret = oufs_find_file(cwd, path, &parentInodeRef, &childInodeRef, NULL);
 
@@ -268,14 +270,44 @@ int oufs_list(char *cwd, char *path)
           fprintf(stderr, "\tDEBUG: Parent found (type=%s).\n",  INODE_TYPE_NAME[parentInode.type]);
       }
       
+      
+      //Display file name
+      if(childInode.type == FILE_TYPE)
+      {
+          for(int i = 0; i < N_DIRECTORY_ENTRIES_PER_BLOCK; ++i)
+          {
+              DIRECTORY_ENTRY entry = parentBlock.content.directory.entry[i];
+              if(entry.inode_reference == childInodeRef)
+              {
+                  printf("%s\n", entry.name);
+                  return 0;
+              }
+          }
+      }
+
       qsort(&childBlock.content.directory.entry[0], N_DIRECTORY_ENTRIES_PER_BLOCK, sizeof(DIRECTORY_ENTRY), inode_compare_to);
 
+      //Display content of a directory
       for(int i = 0; i < N_DIRECTORY_ENTRIES_PER_BLOCK; ++i)
       {
           DIRECTORY_ENTRY entry = childBlock.content.directory.entry[i];
           if(entry.inode_reference != UNALLOCATED_INODE)
           {
-             printf("%s/\n", entry.name);
+              INODE temp;
+              if(oufs_read_inode_by_reference(entry.inode_reference, &temp) != 0){
+                  fprintf(stderr, "Read inode by ref error\n");
+                  return -1;
+              }
+
+              //Print Directory name
+              if(temp.type == DIRECTORY_TYPE)
+              {
+                  printf("%s/\n", entry.name);
+              }//Print File name
+              else if(temp.type == FILE_TYPE)
+              {
+                  printf("%s\n", entry.name);
+              }
           }
       }
 
@@ -290,7 +322,7 @@ int oufs_list(char *cwd, char *path)
   }
 
 
-  //-1 if child not found, 0 if parent and child was found, -2 if no directory in file, -x error
+  //-1 if child not found, 0 if parent and child was found
   return -1;
 
 }
@@ -436,7 +468,6 @@ int oufs_mkdir(char *cwd, char *path)             //Casese not yet working:  if 
 int oufs_rmdir(char *cwd, char *path)
 {
 
-  fprintf(stderr, "Attempting to remove Directory %s", path);
   if(strcmp(path, ".") == 0 || strcmp(path, "..") == 0 || strcmp(path, "/") == 0)
   {
       fprintf(stderr, "Illegal to delete . or .. or /\n");

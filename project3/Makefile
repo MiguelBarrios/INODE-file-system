@@ -41,15 +41,6 @@ test1:	clean all
 	./oufs_rmdir foo/bar
 	./oufs_rmdir foo/bob
 
-test2: clean all
-	./oufs_format
-	./oufs_mkdir foo
-	./oufs_mkdir foo/bar
-	./oufs_mkdir foo/baz
-	./oufs_mkdir foo/bob
-
-
-
 zip:
 	zip project3.zip oufs_format.c oufs.h oufs_inspect.c oufs_lib.c oufs_lib.h oufs_lib_support.h oufs_lib_support.c oufs_ls.c oufs_mkdir.c oufs_rmdir.c oufs_stats.c storage.c storage.h virtual_disk.h virtual_disk.c Makefile README.txt
 

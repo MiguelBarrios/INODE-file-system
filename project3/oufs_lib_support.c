@@ -276,17 +276,6 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
        char *local_name)
 {
 
-  //test
-  if(strlen(path) == 0){
-      if(debug){
-     fprintf(stderr,"Path was not provied will find cur directory\n");
-   }
-     path = cwd;
-  }
-  //endTest
-
-
-
   INODE_REFERENCE grandparent;
   char full_path[MAX_PATH_LENGTH];
 
@@ -329,8 +318,6 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
         fprintf(stderr, "\tDEBUG: Directory: %s\n", directory_name);
       }
 
-      fprintf(stderr, "Directory being searched %d\n", currentDirectoryInodeRef);
-
       INODE curDirectoryInode;
       BLOCK curDirectory;
       if(oufs_read_inode_by_reference(currentDirectoryInodeRef, &curDirectoryInode) == 0 && curDirectoryInode.type == DIRECTORY_TYPE && 
@@ -343,7 +330,6 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
           {
               entry = curDirectory.content.directory.entry[i];
 
-              fprintf(stderr, "comparing %s to %s\n", directory_name, entry.name);
               if((entry.inode_reference != UNALLOCATED_INODE) && (strcmp(entry.name, directory_name) == 0))
               {
                   //Directory found
@@ -374,16 +360,13 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
           else
           {
               currentDirectoryInodeRef = entry.inode_reference;
-
           }
-
       }
       else
       {
           fprintf(stderr,"Read Error\n"); return -5;
       }
 
-      fprintf(stderr, "looking for directory: %s\n", directory_name);
       directory_name = strtok(NULL, "/");  //Gets next token
   }
 
