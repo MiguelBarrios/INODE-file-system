@@ -1,0 +1,38 @@
+Inode table:
+80
+00
+00
+00
+00
+00
+00
+00
+00
+00
+Unallocated front: 6
+Unallocated end: 127
+./
+../
+foo
+Directory at block 5:
+Entry 0: name=".", inode=0
+Entry 1: name="..", inode=0
+Entry 2: name="foo", inode=1
+Inode: 1
+Type: FILE
+Nreferences: 1
+Content block: 65534
+Size: 0
+Inode table:
+c0
+00
+00
+00
+00
+00
+00
+00
+00
+00
+Unallocated front: 6
+Unallocated end: 127

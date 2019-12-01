@@ -1,0 +1,38 @@
+Inode table:
+80
+00
+00
+00
+00
+00
+00
+00
+00
+00
+Unallocated front: 6
+Unallocated end: 127
+./
+../
+baz
+Directory at block 5:
+Entry 0: name=".", inode=0
+Entry 1: name="..", inode=0
+Entry 2: name="baz", inode=1
+Inode: 1
+Type: FILE
+Nreferences: 1
+Content block: 6
+Size: 5124
+Inode table:
+c0
+00
+00
+00
+00
+00
+00
+00
+00
+00
+Unallocated front: 27
+Unallocated end: 127
