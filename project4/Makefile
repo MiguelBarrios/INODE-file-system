@@ -1,4 +1,5 @@
-all:	 ouFormat inspect oufs_ls oufs_mkdir oufs_rmdir oufs_stats oufs_touch oufs_create oufs_append oufs_cat oufs_copy oufs_remove
+all:	 ouFormat inspect oufs_ls oufs_mkdir oufs_rmdir oufs_stats oufs_touch oufs_create oufs_append oufs_cat oufs_copy oufs_remove oufs_link
+
 reset:	clean  all
 
 ouFormat:	oufs_format.c 
@@ -37,18 +38,22 @@ oufs_copy: oufs_copy.c
 oufs_remove: oufs_remove.c
 	gcc oufs_remove.c oufs_lib.c oufs_lib_support.c  virtual_disk.c storage.c -o oufs_remove -lm
 
+oufs_link: oufs_link.c
+	gcc oufs_link.c oufs_lib_support.c virtual_disk.c oufs_lib.c storage.c -o oufs_link -lm
+
 pipes:
 	mkfifo pipe_in pipe_out
 
 clean:
-	rm -f oufs_format oufs_inspect oufs_ls  oufs_mkdir  oufs_rmdir  oufs_stats oufs_touch oufs_create oufs_append oufs_cat oufs_copy oufs_remove *.o
+	rm -f oufs_format oufs_inspect oufs_ls oufs_mkdir  oufs_rmdir  oufs_stats oufs_touch oufs_create oufs_append oufs_cat oufs_copy oufs_remove oufs_link *.o
 
 test:	clean all
 	./oufs_format
-	./oufs_touch foo
-	./oufs_append foo
+	./oufs_mkdir bar
+	./oufs_create bar/foo
+
 
 zip:
-	zip project4.zip oufs_format.c oufs_touch.c oufs.h oufs_inspect.c oufs_lib.c oufs_lib.h oufs_lib_support.h oufs_lib_support.c oufs_ls.c oufs_mkdir.c oufs_rmdir.c oufs_stats.c storage.c storage.h virtual_disk.h virtual_disk.c Makefile README.txt
+	zip project4.zip oufs_format.c oufs_cat.c oufs_remove.c oufs_copy.c oufs_create.c oufs_append.c oufs_touch.c oufs.h oufs_inspect.c oufs_lib.c oufs_lib.h oufs_lib_support.h oufs_lib_support.c oufs_ls.c oufs_mkdir.c oufs_rmdir.c oufs_stats.c storage.c storage.h virtual_disk.h virtual_disk.c oufs_link.c oufs_inspect.c Makefile README.txt
 
 rbuild: clean all 

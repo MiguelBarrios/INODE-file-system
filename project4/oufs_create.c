@@ -20,6 +20,11 @@ int main(int argc, char** argv) {
     fprintf(stderr, "Usage: oufs_create <file name>\n");
   }else{
     OUFILE *fp = oufs_fopen(cwd, argv[1], "w");
+    fprintf(stderr, "\n--------File content----------\n");
+    fprintf(stderr, "inode ref: %d, mode %c, offset %d\n", fp -> inode_reference, fp -> mode, fp -> offset);
+    fprintf(stderr, "------------------------------\n");
+
+
     unsigned char buf[BUF_SIZE];
     if(fp != NULL) {
       int n;

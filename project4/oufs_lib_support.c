@@ -268,7 +268,6 @@ int oufs_find_directory_element(INODE *inode, char *element_name)         //TODO
 int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERENCE *child,
        char *local_name)
 {
-
   INODE_REFERENCE grandparent;
   char full_path[MAX_PATH_LENGTH];
 
@@ -326,7 +325,7 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
               if((entry.inode_reference != UNALLOCATED_INODE) && (strcmp(entry.name, directory_name) == 0))
               {
                   //Directory found
-                  fprintf(stderr, "Arrigning grandparent %d parent %d Child %d\n", *parent, *child, entry.inode_reference);
+                  //fprintf(stderr, "Arrigning grandparent %d parent %d Child %d\n", *parent, *child, entry.inode_reference);
                   grandparent = *parent;
                   *parent = *child;
                   *child = entry.inode_reference;
@@ -347,7 +346,7 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
                   *parent = *child;
                   *child = UNALLOCATED_INODE;
                   if(debug)
-                    fprintf(stderr, "Assigning grandparent %d parent %d Child %d\n", grandparent, *parent, *child);
+                    //fprintf(stderr, "Assigning grandparent %d parent %d Child %d\n", grandparent, *parent, *child);
                   return -1;
               }
           }
@@ -375,8 +374,6 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
   }
   // Success!
   return(0);
-
-
 } 
 
 
@@ -686,8 +683,6 @@ BLOCK_REFERENCE oufs_allocate_new_block(BLOCK *master_block, BLOCK *new_block)
   BLOCK_REFERENCE ref = master_block -> content.master.unallocated_front;
   master_block -> content.master.unallocated_front = new_block -> next_block;
   new_block -> next_block = UNALLOCATED_BLOCK;
-
-  fprintf(stderr, "free list updated front: %d\n", master_block -> content.master.unallocated_front);
 
   return(ref);
 }

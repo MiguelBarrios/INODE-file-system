@@ -592,8 +592,7 @@ OUFILE* oufs_fopen(char *cwd, char *path, char *mode)
     return(NULL);
   }
 
-  
-
+  fprintf(stderr, "parentRef: %d, childRef: %d\n", parent, child);
 
   INODE parentInode;
   oufs_read_inode_by_reference(parent, &parentInode);
@@ -622,31 +621,81 @@ OUFILE* oufs_fopen(char *cwd, char *path, char *mode)
 		if(strcmp(fileName, entry.name) == 0)
 		{
 		//	fprintf(stderr, "inner loop 1\n");
- 			INODE entryInode;
+ 			  INODE entryInode;
   			if(oufs_read_inode_by_reference(entry.inode_reference, &entryInode) == 0 && entryInode.type == FILE_TYPE)
   			{  	 
   				//File already exists
   				OUFILE *file = malloc(sizeof(OUFILE));
-  	    		file -> inode_reference = child;
- 		 		file -> mode = *mode;
+  	    	file -> inode_reference = entry.inode_reference;
+ 		 		  file -> mode = *mode;
 
   				if(mode[0] == 'r')
   				{
   					file -> offset = 0;
   					return file;
   				}
-
-  				if(mode[0] == 'a')
+  				else if(mode[0] == 'a')
   				{
   					file -> offset = entryInode.size;
   					return file;
   				}
+          else if(mode[0] == 'w')
+          {
+            /*
+            If the specified file does not exist, then it is created.
+            If the specified file does exist, then it is first truncated (data blocks deallocated and the inode.size set to zero).
+            In either case, any input to STDIN is written to the file. This process stops when an EOF is received from STDIN.
+            It is an error if the parent does not exist or if the specified child is a directory
+            */ 
 
-  	     	 	
+            //FILE already exist and is of size zero
+            if(entryInode.content == UNALLOCATED_BLOCK){
+                file -> offset = entryInode.size = 0;
+                return file;
+            }
+
+
+            //File already exist but is not of size 0
+            BLOCK master;
+            BLOCK lastBlock;
+            BLOCK_REFERENCE firstBlockInFileRef = entryInode.content;
+            BLOCK_REFERENCE lastBlockInFileRef = entryInode.content;
+
+            //This part assumes the block are allocated  correctly
+            virtual_disk_read_block(MASTER_BLOCK_REFERENCE, &master);
+            virtual_disk_read_block(lastBlockInFileRef, &lastBlock);
+            
+            
+            while(lastBlock.next_block != UNALLOCATED_BLOCK){
+                lastBlockInFileRef = lastBlock.next_block;
+                virtual_disk_read_block(lastBlockInFileRef, &lastBlock);
+            }
+
+            //update Free list
+            if(master.content.master.unallocated_front == master.content.master.unallocated_end){
+                master.content.master.unallocated_front = master.content.master.unallocated_end = firstBlockInFileRef;
+            }
+            else{
+              master.content.master.unallocated_end = firstBlockInFileRef;
+              master.content.master.unallocated_end = lastBlockInFileRef;
+            }
+
+            fprintf(stderr, "unallocated_front: %d , unallocated_end: %d",  firstBlockInFileRef, lastBlockInFileRef);
+
+
+            entryInode.content = UNALLOCATED_BLOCK;
+            file -> offset = entryInode.size = 0;
+
+            virtual_disk_write_block(MASTER_BLOCK_REFERENCE, &master);
+            oufs_write_inode_by_reference(entry.inode_reference, &entryInode);
+
+            return file;
+          }  	     	 	
 			}
 		}  		
   }
 
+  //file does not exist
   if(mode[0] == 'a' || mode[0] == 'w')
   {
   		OUFILE *file = malloc(sizeof(OUFILE));
@@ -700,7 +749,7 @@ void oufs_fclose(OUFILE *fp) {
 int oufs_fwrite(OUFILE *fp, unsigned char * buf, int len)
 {
 
-	fprintf(stderr, "-------------------------------------------\n");
+  fprintf(stderr, "-------------------------------------------\n");
 
   if(fp->mode == 'r') {
     fprintf(stderr, "Can't write to read-only file");
@@ -720,88 +769,124 @@ int oufs_fwrite(OUFILE *fp, unsigned char * buf, int len)
   		fprintf(stderr, "read error");
   }
 
-  fprintf(stderr, "File offset: %d\n", fp-> offset);
+  //------Start------
+  BLOCK currentBlock;
+  BLOCK_REFERENCE currentBlockRef = fileInode.content;
   
   int current_blocks = (fp->offset + DATA_BLOCK_SIZE - 1) / DATA_BLOCK_SIZE;
   int used_bytes_in_last_block = fp->offset % DATA_BLOCK_SIZE;
   int free_bytes_in_last_block = DATA_BLOCK_SIZE - used_bytes_in_last_block;
   int len_written = 0;
 
-  fprintf(stderr, "current_blocks %d\n", current_blocks);
   
-  //------Start------
-  BLOCK currentBlock;
-  //Get current Block
-  BLOCK_REFERENCE currentBlockRef = fileInode.content;
-  fprintf(stderr, "Initial Block ref: %d\n", currentBlockRef);
+  fprintf(stderr, "File offset: %d ", fp-> offset);
+  fprintf(stderr, "Current Block: %d \n", current_blocks);
+  fprintf(stderr, "used_bytes_in_last_block %d ", used_bytes_in_last_block);
+  fprintf(stderr, "free_bytes_in_last_block %d\n", free_bytes_in_last_block);
+  
+
   if(currentBlockRef == UNALLOCATED_BLOCK)
   {
   		currentBlockRef =  oufs_allocate_new_block(&masterBlock, &currentBlock);
+
   	 	if(currentBlockRef == UNALLOCATED_BLOCK){
   			fprintf(stderr, "File is full\n");
   			return 0;
 		}
 		fileInode.content = currentBlockRef;
-	 	
   }
-  else if(current_blocks == 1)
+  else
   {
-  		virtual_disk_read_block(currentBlockRef, &currentBlock);
+  		for(int i = 0; i < current_blocks; ++i)
+  		{
+  			//fprintf(stderr, "currentBlockRef %d ", currentBlockRef);
+  			virtual_disk_read_block(currentBlockRef, &currentBlock);
+  			currentBlockRef = currentBlock.next_block;
+  			if(currentBlockRef == UNALLOCATED_BLOCK)
+  			{
+  				if(masterBlock.content.master.unallocated_front != UNALLOCATED_BLOCK)
+  				{
+  					currentBlock.next_block = masterBlock.content.master.unallocated_front;
+  					virtual_disk_write_block(currentBlockRef, &currentBlock);
+  					currentBlockRef = oufs_allocate_new_block(&masterBlock, &currentBlock);
+  				}
+  				else
+  				{
+  					return 0;
+  				}
+  			}
+  		}
+  		//fprintf(stderr, "\nfinal blockRef %d\n", currentBlockRef);
+
   }
 
-  fprintf(stderr, "updated Block Ref: %d\n", currentBlockRef);
+  int curIndex = 0;
 
   while(len_written < len)
   {
+  		int writeSize = 0 ;
+  		if(len < free_bytes_in_last_block)
+  			writeSize = len;
+  		else if(len >= free_bytes_in_last_block)
+  			writeSize = free_bytes_in_last_block;
 
-  		int writeSize = MIN(free_bytes_in_last_block, len - len_written);
 
-  		fprintf(stderr, "Attemting to write to block: %d\n", currentBlockRef);
-  		fprintf(stderr, "		write to Index: %d\n", used_bytes_in_last_block);
-  		fprintf(stderr, "		writeSize: %d\n", writeSize);
-  		fprintf(stderr, "		writeSize: %d\n", writeSize);
+  	  	fprintf(stderr, "Write size: %d\n", writeSize);
 
-  		memcpy(&currentBlock.content.data.data[used_bytes_in_last_block], buf, writeSize);
+  	  	
+		fprintf(stderr, "current block %d\n", currentBlockRef);
+  		fprintf(stderr, "len written %d ", len_written);
+  		fprintf(stderr, "used_bytes_in_last_block %d ", used_bytes_in_last_block);
+  		fprintf(stderr, "writeSize %d ", writeSize);
+  		fprintf(stderr, "curIndex %d \n", curIndex);
+  		
+  		
+  		memcpy(&currentBlock.content.data.data[used_bytes_in_last_block], &buf[curIndex], writeSize);
 
   		//update current info
   		len_written += writeSize;
   		free_bytes_in_last_block = free_bytes_in_last_block - writeSize;
   		used_bytes_in_last_block = 0;
-  		fp -> offset = fp -> offset + len_written;
+  		fp -> offset = fp -> offset + writeSize;
+
+  		//fprintf(stderr, "len_written %d len %d\n", len_written, len);
 
   		if(len_written == len)
   		{
+  			currentBlock.next_block = UNALLOCATED_BLOCK;
   			virtual_disk_write_block(currentBlockRef, &currentBlock);
   			break;
   		}
   		else if(len_written < len)
   		{
-  			fprintf(stderr, "Additional Block added to file\n");
-  			currentBlock.next_block = masterBlock.content.master.unallocated_front;
-  			virtual_disk_write_block(currentBlockRef, &currentBlock);
 
-  			currentBlockRef =  oufs_allocate_new_block(&masterBlock, &currentBlock);
+  			if(masterBlock.content.master.unallocated_front != UNALLOCATED_BLOCK)
+  			{
+  				fprintf(stderr, "update: currentBlock -> next block to %d  ", masterBlock.content.master.unallocated_front);
+  				currentBlock.next_block = masterBlock.content.master.unallocated_front;
+  				virtual_disk_write_block(currentBlockRef, &currentBlock);
+
+  				currentBlockRef = oufs_allocate_new_block(&masterBlock, &currentBlock);
+  			}
+
   			if(currentBlockRef == UNALLOCATED_BLOCK){
   	 			fprintf(stderr, "File is full\n");
   	 			return 0;
   	 		}
 
+  	 		used_bytes_in_last_block = 0;
+  	 		curIndex = len_written;
   	 		free_bytes_in_last_block = DATA_BLOCK_SIZE;
   	 		virtual_disk_read_block(currentBlockRef, &currentBlock);
-
+  	 		//fprintf(stderr, "Additional Block added to file\n");
   		}
-
-
-  		
   }
-
-  fprintf(stderr, "Exited out of while loop\n");
-  fprintf(stderr, "New File offset: %d\n", fp -> offset);
 
   fileInode.size = fileInode.size + len_written;
   oufs_write_inode_by_reference(fp -> inode_reference, &fileInode);
 
   virtual_disk_write_block(MASTER_BLOCK_REFERENCE, &masterBlock);
+
 
   // Done
   return(len_written);
@@ -843,29 +928,49 @@ int oufs_fread(OUFILE *fp, unsigned char * buf, int len)
   int byte_offset_in_block = fp->offset % DATA_BLOCK_SIZE;
   int len_read = 0;
   int end_of_file = fileInode.size;
-  len = MIN(len, end_of_file - fp->offset);
   int len_left = fileInode.size - (fp -> offset);
-
   int curIndex = 0;
-  //TODO: get correct block, will be 
-
   BLOCK_REFERENCE nextBlockRef = fileInode.content;
-  while(len_read < end_of_file && nextBlockRef != UNALLOCATED_BLOCK)
+
+  /*
+  fprintf(stderr, "fileInode.size %d\n", fileInode.size);
+  fprintf(stderr, "currentBlock %d\n", current_block);
+  fprintf(stderr, "byte_offset_in_block %d\n", byte_offset_in_block);
+  fprintf(stderr, "end_of_file %d\n", end_of_file);
+  fprintf(stderr, "len_left %d\n", len_left);
+  fprintf(stderr, "nextBlockRef %d\n", nextBlockRef);
+  fprintf(stderr, "###################\n");
+	*/
+
+  while(len_read < end_of_file)
   {
   		//TODO:  IF FILE SIZE IS ABOVE 1000 logic must be added
+  		if(fp -> offset == end_of_file)
+  			return 0;
 
-  		virtual_disk_read_block(nextBlockRef, &currentBlock);
-  		int read = MIN(DATA_BLOCK_SIZE, len_left);
+  		if(virtual_disk_read_block(nextBlockRef, &currentBlock) != 0){
+  			return -1;
+  		}
 
-  		memcpy(&buf[curIndex], &currentBlock.content.data.data[0], DATA_BLOCK_SIZE);
-  		curIndex += DATA_BLOCK_SIZE;
-  		len_left -= DATA_BLOCK_SIZE;
-  		len_read += read;
+  		int readAmount = MIN(DATA_BLOCK_SIZE, len_left);
+
+  		if((readAmount + len_read) / 1000 > 0)
+  		{
+  			fprintf(stderr, "Buffer will be full\n");
+  			readAmount = (readAmount + len_read) % 1000;
+  		}
+
+  		memcpy(&buf[curIndex], &currentBlock.content.data.data[0], readAmount);
+
+  		curIndex += readAmount;
+  		len_left -= readAmount;
+  		len_read += readAmount;
 
   		nextBlockRef = currentBlock.next_block;
+
+  		fprintf(stderr, "next block ref %d\n", nextBlockRef);
   }
-  //fprintf(stderr, "stored %d byetes\n", len_read);
- // fprintf(stderr, "len_read %d\n", len_read);
+
   fp ->offset = len_read;
 
   // Done
