@@ -806,15 +806,12 @@ int oufs_fwrite(OUFILE *fp, unsigned char * buf, int len)
   }
   else
   {
-
       virtual_disk_read_block(currentBlockRef, &currentBlock);
 
   		for(int i = 0; i < current_blocks; ++i)
   		{
-        if(currentBlock.next_block == UNALLOCATED_BLOCK)
+        if(currentBlock.next_block == UNALLOCATED_BLOCK )
         {
-
-
             if(free_bytes_in_last_block > 0)
             {
                 break;
@@ -825,7 +822,9 @@ int oufs_fwrite(OUFILE *fp, unsigned char * buf, int len)
             currentBlock.next_block = masterBlock.content.master.unallocated_front;
             virtual_disk_write_block(currentBlockRef, &currentBlock);
             currentBlockRef = oufs_allocate_new_block(&masterBlock, &currentBlock);
-
+            if(currentBlockRef == UNALLOCATED_BLOCK){
+              return 0;
+            }
         }
         else
         {
@@ -835,6 +834,7 @@ int oufs_fwrite(OUFILE *fp, unsigned char * buf, int len)
 
   		}
   		fprintf(stderr, "\nfinal blockRef %d\n", currentBlockRef);
+      fprintf(stderr, "number of bytes left in block %d\n", free_bytes_in_last_block);
 
   }
 
@@ -854,12 +854,12 @@ int oufs_fwrite(OUFILE *fp, unsigned char * buf, int len)
 
   	  fprintf(stderr, "Write size: %d\n", writeSize);
 
-    	  fprintf(stderr, "    #Before Write to file#\n");
-  		  fprintf(stderr, "    current block %d\n", currentBlockRef);
-    		fprintf(stderr, "    used_bytes_in_last_block %d\n", used_bytes_in_last_block);
-    		fprintf(stderr, "    writeSize %d\n", writeSize);
-    		fprintf(stderr, "    curIndex %d \n", curIndex);
-  		
+  	  fprintf(stderr, "    #Before Write to file#\n");
+		  fprintf(stderr, "    current block %d\n", currentBlockRef);
+  		fprintf(stderr, "    used_bytes_in_last_block %d\n", used_bytes_in_last_block);
+  		fprintf(stderr, "    writeSize %d\n", writeSize);
+  		fprintf(stderr, "    curIndex %d \n", curIndex);
+
   		
   		memcpy(&currentBlock.content.data.data[used_bytes_in_last_block], &buf[curIndex], writeSize);
 
@@ -876,6 +876,11 @@ int oufs_fwrite(OUFILE *fp, unsigned char * buf, int len)
 
   		if(len_written == len)
   		{
+        if(masterBlock.content.master.unallocated_front == UNALLOCATED_BLOCK){
+           masterBlock.content.master.unallocated_end = UNALLOCATED_BLOCK;
+           virtual_disk_write_block(MASTER_BLOCK_REFERENCE, &masterBlock);
+        }
+
   			currentBlock.next_block = UNALLOCATED_BLOCK;
   			virtual_disk_write_block(currentBlockRef, &currentBlock);
   			break;
@@ -885,16 +890,21 @@ int oufs_fwrite(OUFILE *fp, unsigned char * buf, int len)
 
   			if(masterBlock.content.master.unallocated_front != UNALLOCATED_BLOCK)
   			{
-  				fprintf(stderr, "update: currentBlock -> next block to %d  ", masterBlock.content.master.unallocated_front);
-  				currentBlock.next_block = masterBlock.content.master.unallocated_front;
-  				if(virtual_disk_write_block(currentBlockRef, &currentBlock) == 0){
-              fprintf(stderr, "Block %d wrote back to disk\n", currentBlockRef);
-          }
+  				  fprintf(stderr, "update: currentBlock -> next block to %d  ", masterBlock.content.master.unallocated_front);
+  				  currentBlock.next_block = masterBlock.content.master.unallocated_front;
+  				  if(virtual_disk_write_block(currentBlockRef, &currentBlock) == 0){
+                fprintf(stderr, "Block %d wrote back to disk\n", currentBlockRef);
+            }
 
-  				currentBlockRef = oufs_allocate_new_block(&masterBlock, &currentBlock);
+  				  currentBlockRef = oufs_allocate_new_block(&masterBlock, &currentBlock);
+            if(currentBlockRef == UNALLOCATED_BLOCK){
+              return 0;
+            }
   			}
 
   			if(currentBlockRef == UNALLOCATED_BLOCK){
+          masterBlock.content.master.unallocated_front = masterBlock.content.master.unallocated_end = UNALLOCATED_BLOCK;
+          virtual_disk_write_block(MASTER_BLOCK_REFERENCE, &masterBlock);
   	 			fprintf(stderr, "File is full\n");
   	 			return 0;
   	 		}

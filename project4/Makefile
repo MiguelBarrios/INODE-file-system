@@ -49,8 +49,8 @@ clean:
 
 test:	clean all
 	./oufs_format
-	cat 1block.txt | ./oufs_create foo
-	./oufs_remove foo
+	cat 128block.txt | ./oufs_create foo
+	
 
 zip:
 	zip project4.zip oufs_format.c oufs_cat.c oufs_remove.c oufs_copy.c oufs_create.c oufs_append.c oufs_touch.c oufs.h oufs_inspect.c oufs_lib.c oufs_lib.h oufs_lib_support.h oufs_lib_support.c oufs_ls.c oufs_mkdir.c oufs_rmdir.c oufs_stats.c storage.c storage.h virtual_disk.h virtual_disk.c oufs_link.c oufs_inspect.c Makefile README.txt

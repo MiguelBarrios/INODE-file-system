@@ -668,6 +668,7 @@ BLOCK_REFERENCE oufs_allocate_new_block(BLOCK *master_block, BLOCK *new_block)
   // Is there an available block?
   if(master_block->content.master.unallocated_front == UNALLOCATED_BLOCK) {
     // Did not find an available block
+    master_block -> content.master.unallocated_end = UNALLOCATED_BLOCK;
     if(debug)
       fprintf(stderr, "No blocks\n");
     return(UNALLOCATED_BLOCK);
