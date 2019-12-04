@@ -306,9 +306,8 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
       if(strlen(directory_name) >= FILE_NAME_SIZE-1){  
         directory_name[FILE_NAME_SIZE - 1] = 0;
       }
-      if(debug){
-        fprintf(stderr, "\tDEBUG: Directory: %s\n", directory_name);
-      }
+        
+      fprintf(stderr, "\tDEBUG: Directory: %s\n", directory_name);
 
       INODE curDirectoryInode;
       BLOCK curDirectory;
@@ -331,6 +330,7 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
                   *child = entry.inode_reference;
                   found = 1;
               }
+
           }
 
           if(found == 0)//Directory not found
@@ -345,7 +345,7 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
                   grandparent = *parent;
                   *parent = *child;
                   *child = UNALLOCATED_INODE;
-                  if(debug)
+                  //if(debug)
                     //fprintf(stderr, "Assigning grandparent %d parent %d Child %d\n", grandparent, *parent, *child);
                   return -1;
               }
@@ -680,10 +680,53 @@ BLOCK_REFERENCE oufs_allocate_new_block(BLOCK *master_block, BLOCK *new_block)
       return UNALLOCATED_BLOCK;
   }
 
+  
   BLOCK_REFERENCE ref = master_block -> content.master.unallocated_front;
   master_block -> content.master.unallocated_front = new_block -> next_block;
+
+  memset(new_block, 0, BLOCK_SIZE);
   new_block -> next_block = UNALLOCATED_BLOCK;
 
   return(ref);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

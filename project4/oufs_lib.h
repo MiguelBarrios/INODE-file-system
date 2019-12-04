@@ -20,6 +20,6 @@ int oufs_fwrite(OUFILE *fp, unsigned char * buf, int len);
 int oufs_fread(OUFILE *fp, unsigned char * buf, int len);
 int oufs_remove(char *cwd, char *path);
 int oufs_link(char *cwd, char *path_src, char *path_dst);
-
+void printFileInfo(OUFILE* file);
 #endif
 
