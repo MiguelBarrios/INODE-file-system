@@ -324,7 +324,6 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
               if((entry.inode_reference != UNALLOCATED_INODE) && (strcmp(entry.name, directory_name) == 0))
               {
                   //Directory found
-                  //fprintf(stderr, "Arrigning grandparent %d parent %d Child %d\n", *parent, *child, entry.inode_reference);
                   grandparent = *parent;
                   *parent = *child;
                   *child = entry.inode_reference;
@@ -345,8 +344,6 @@ int oufs_find_file(char *cwd, char * path, INODE_REFERENCE *parent, INODE_REFERE
                   grandparent = *parent;
                   *parent = *child;
                   *child = UNALLOCATED_INODE;
-                  //if(debug)
-                    //fprintf(stderr, "Assigning grandparent %d parent %d Child %d\n", grandparent, *parent, *child);
                   return -1;
               }
           }
@@ -454,7 +451,6 @@ int oufs_allocate_new_directory(INODE_REFERENCE parent_reference)
      fprintf(stderr, "Read error oufs_lib_support -> oufs_allocate_new_directory\n");
   }
 
-  
   //updates free list with new front
   masterBlock.content.master.unallocated_front = newDirectoryBlock.next_block;
 
@@ -570,7 +566,6 @@ INODE_REFERENCE oufs_create_file(INODE_REFERENCE parent, char *local_name) //If 
       return UNALLOCATED_INODE;
   }
 
-  
   //----------------------------write master block back to disk---------------------
   if(virtual_disk_write_block(MASTER_BLOCK_REFERENCE, &masterblock) != 0){
       fprintf(stderr, "Write Error");
@@ -593,7 +588,7 @@ INODE_REFERENCE oufs_create_file(INODE_REFERENCE parent, char *local_name) //If 
       DIRECTORY_ENTRY entry = parentBlock.content.directory.entry[i];
       if(entry.inode_reference == UNALLOCATED_INODE)
       {
-          strcpy(entry.name, local_name);                                   //check to see if only filename is in local name
+          strcpy(entry.name, local_name);            //check to see if only filename is in local name
           entry.inode_reference = newFileInodeRef;
           parentBlock.content.directory.entry[i] = entry;
           break;
@@ -643,9 +638,6 @@ int oufs_deallocate_blocks(INODE *inode)
   if(inode->content == UNALLOCATED_BLOCK)
     return(0);
 
-  // TODO
-
-
   // Success
   return(0);
 }
@@ -674,8 +666,6 @@ BLOCK_REFERENCE oufs_allocate_new_block(BLOCK *master_block, BLOCK *new_block)
     return(UNALLOCATED_BLOCK);
   }
 
-  //------------TODO---------------------------
-
   if(virtual_disk_read_block(master_block -> content.master.unallocated_front, new_block) != 0){
       fprintf(stderr, "Read error");
       return UNALLOCATED_BLOCK;
@@ -690,44 +680,3 @@ BLOCK_REFERENCE oufs_allocate_new_block(BLOCK *master_block, BLOCK *new_block)
 
   return(ref);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -132,7 +132,6 @@ int oufs_format_disk(char  *virtual_disk_name, char *pipe_name_base)
   if(virtual_disk_write_block(N_BLOCKS - 1, &link) == -1){
         fprintf(stderr, "write to block error\n");
   }
-  //--------- End Master Block initialization --------
 
 
   //-------- Inodes initialization -------------------  
@@ -616,77 +615,77 @@ OUFILE* oufs_fopen(char *cwd, char *path, char *mode)
 
   for(int i = 0; i < N_DIRECTORY_ENTRIES_PER_BLOCK; ++i)
   {
-  		DIRECTORY_ENTRY entry = parentDirectory.content.directory.entry[i];
-  		//fprintf(stderr, "Comparing %s : %s, = %d\n", fileName, entry.name, strcmp(fileName, entry.name));
-		if(strcmp(fileName, entry.name) == 0)
-		{
-		//	fprintf(stderr, "inner loop 1\n");
- 			  INODE entryInode;
-  			if(oufs_read_inode_by_reference(entry.inode_reference, &entryInode) == 0 && entryInode.type == FILE_TYPE)
-  			{  	 
-  				//File already exists
-  				OUFILE *file = malloc(sizeof(OUFILE));
-  	    	file -> inode_reference = entry.inode_reference;
- 		 		  file -> mode = *mode;
+    	DIRECTORY_ENTRY entry = parentDirectory.content.directory.entry[i];
 
-  				if(mode[0] == 'r')
-  				{
-  					file -> offset = 0;
-  					return file;
-  				}
-  				else if(mode[0] == 'a')
-  				{
-  					file -> offset = entryInode.size;
-            printFileInfo(file);
-  					return file;
-  				}
-          else if(mode[0] == 'w')
-          {
-            //FILE already exist and is of size zero
-            if(entryInode.content == UNALLOCATED_BLOCK){
-                file -> offset = entryInode.size = 0;
-                return file;
-            }
+  		if(strcmp(fileName, entry.name) == 0)
+  		{
+  		    //	fprintf(stderr, "inner loop 1\n");
+   			  INODE entryInode;
+    			if(oufs_read_inode_by_reference(entry.inode_reference, &entryInode) == 0 && entryInode.type == FILE_TYPE)
+    			{  	 
+      				//File already exists
+      				OUFILE *file = malloc(sizeof(OUFILE));
+      	    	file -> inode_reference = entry.inode_reference;
+     		 		  file -> mode = *mode;
 
-
-            //File already exist but is not of size 0
-            BLOCK master;
-            BLOCK lastBlock;
-            BLOCK_REFERENCE firstBlockInFileRef = entryInode.content;
-            BLOCK_REFERENCE lastBlockInFileRef = entryInode.content;
-
-            //This part assumes the block are allocated  correctly
-            virtual_disk_read_block(MASTER_BLOCK_REFERENCE, &master);
-            virtual_disk_read_block(lastBlockInFileRef, &lastBlock);
-            
-            
-            while(lastBlock.next_block != UNALLOCATED_BLOCK){
-                lastBlockInFileRef = lastBlock.next_block;
-                virtual_disk_read_block(lastBlockInFileRef, &lastBlock);
-            }
-
-            //update Free list
-            if(master.content.master.unallocated_front == master.content.master.unallocated_end){
-                master.content.master.unallocated_front = master.content.master.unallocated_end = firstBlockInFileRef;
-            }
-            else{
-              master.content.master.unallocated_end = firstBlockInFileRef;
-              master.content.master.unallocated_end = lastBlockInFileRef;
-            }
-
-            fprintf(stderr, "unallocated_front: %d , unallocated_end: %d",  firstBlockInFileRef, lastBlockInFileRef);
+      				if(mode[0] == 'r')
+      				{
+        					file -> offset = 0;
+        					return file;
+      				}
+      				else if(mode[0] == 'a')
+      				{
+        					file -> offset = entryInode.size;
+                  printFileInfo(file);
+        					return file;
+      				}
+              else if(mode[0] == 'w')
+              {
+                  //FILE already exist and is of size zero
+                  if(entryInode.content == UNALLOCATED_BLOCK){
+                      file -> offset = entryInode.size = 0;
+                      return file;
+                  }
 
 
-            entryInode.content = UNALLOCATED_BLOCK;
-            file -> offset = entryInode.size = 0;
+                  //File already exist but is not of size 0
+                  BLOCK master;
+                  BLOCK lastBlock;
+                  BLOCK_REFERENCE firstBlockInFileRef = entryInode.content;
+                  BLOCK_REFERENCE lastBlockInFileRef = entryInode.content;
 
-            virtual_disk_write_block(MASTER_BLOCK_REFERENCE, &master);
-            oufs_write_inode_by_reference(entry.inode_reference, &entryInode);
+                  //This part assumes the block are allocated  correctly
+                  virtual_disk_read_block(MASTER_BLOCK_REFERENCE, &master);
+                  virtual_disk_read_block(lastBlockInFileRef, &lastBlock);
+                  
+                  
+                  while(lastBlock.next_block != UNALLOCATED_BLOCK){
+                      lastBlockInFileRef = lastBlock.next_block;
+                      virtual_disk_read_block(lastBlockInFileRef, &lastBlock);
+                  }
 
-            return file;
-          }  	     	 	
-			}
-		}  		
+                  //update Free list
+                  if(master.content.master.unallocated_front == master.content.master.unallocated_end){
+                      master.content.master.unallocated_front = master.content.master.unallocated_end = firstBlockInFileRef;
+                  }
+                  else{
+                    master.content.master.unallocated_end = firstBlockInFileRef;
+                    master.content.master.unallocated_end = lastBlockInFileRef;
+                  }
+
+                  fprintf(stderr, "unallocated_front: %d , unallocated_end: %d",  firstBlockInFileRef, lastBlockInFileRef);
+
+
+                  entryInode.content = UNALLOCATED_BLOCK;
+                  file -> offset = entryInode.size = 0;
+
+                  virtual_disk_write_block(MASTER_BLOCK_REFERENCE, &master);
+                  oufs_write_inode_by_reference(entry.inode_reference, &entryInode);
+
+                  return file;
+              }  	     	 	
+  			   }
+  		}  		
   }
 
   //file does not exist
@@ -699,13 +698,11 @@ OUFILE* oufs_fopen(char *cwd, char *path, char *mode)
   			 return NULL;
 
 
- 		file -> mode = *mode;
-  	file -> offset = 0;
+   		file -> mode = *mode;
+    	file -> offset = 0;
 
-
-  	//TODO: deallocate reamainng blocks on create: mode w
-    printFileInfo(file);
-  	return(file);
+      printFileInfo(file);
+    	return(file);
   }
 
   return NULL;
@@ -785,14 +782,7 @@ int oufs_fwrite(OUFILE *fp, unsigned char * buf, int len)
   int current_blocks = (fp->offset + DATA_BLOCK_SIZE - 1) / DATA_BLOCK_SIZE;
   int used_bytes_in_last_block = fp->offset % DATA_BLOCK_SIZE;
   int free_bytes_in_last_block = DATA_BLOCK_SIZE - used_bytes_in_last_block;
-  int len_written = 0;
-
-  fprintf(stderr, "###Number of bytes to write: %d\n", len);
-  fprintf(stderr, "File offset: %d, ", fp-> offset);
-  fprintf(stderr, "Current Block: %d \n", current_blocks);
-  fprintf(stderr, "used_bytes_in_last_block %d, ", used_bytes_in_last_block);
-  fprintf(stderr, "free_bytes_in_last_block %d\n", free_bytes_in_last_block);
-  
+  int len_written = 0; 
 
   if(fileInode.content == UNALLOCATED_BLOCK)
   {
@@ -801,8 +791,9 @@ int oufs_fwrite(OUFILE *fp, unsigned char * buf, int len)
   	 	if(currentBlockRef == UNALLOCATED_BLOCK){
   			fprintf(stderr, "File is full\n");
   			return 0;
-		}
-		fileInode.content = currentBlockRef;
+  		}
+
+  		fileInode.content = currentBlockRef;
   }
   else
   {
@@ -823,7 +814,7 @@ int oufs_fwrite(OUFILE *fp, unsigned char * buf, int len)
             virtual_disk_write_block(currentBlockRef, &currentBlock);
             currentBlockRef = oufs_allocate_new_block(&masterBlock, &currentBlock);
             if(currentBlockRef == UNALLOCATED_BLOCK){
-              return 0;
+                return 0;
             }
         }
         else
@@ -831,10 +822,7 @@ int oufs_fwrite(OUFILE *fp, unsigned char * buf, int len)
            currentBlockRef = currentBlock.next_block;
            virtual_disk_read_block(currentBlock.next_block, &currentBlock);
         }
-
   		}
-  		fprintf(stderr, "\nfinal blockRef %d\n", currentBlockRef);
-      fprintf(stderr, "number of bytes left in block %d\n", free_bytes_in_last_block);
 
   }
 
@@ -851,16 +839,6 @@ int oufs_fwrite(OUFILE *fp, unsigned char * buf, int len)
       if(writeSize > len - len_written)
         writeSize = len - len_written;
 
-
-  	  fprintf(stderr, "Write size: %d\n", writeSize);
-
-  	  fprintf(stderr, "    #Before Write to file#\n");
-		  fprintf(stderr, "    current block %d\n", currentBlockRef);
-  		fprintf(stderr, "    used_bytes_in_last_block %d\n", used_bytes_in_last_block);
-  		fprintf(stderr, "    writeSize %d\n", writeSize);
-  		fprintf(stderr, "    curIndex %d \n", curIndex);
-
-  		
   		memcpy(&currentBlock.content.data.data[used_bytes_in_last_block], &buf[curIndex], writeSize);
 
 
@@ -870,50 +848,43 @@ int oufs_fwrite(OUFILE *fp, unsigned char * buf, int len)
   		used_bytes_in_last_block = 0;
   		fp -> offset = fp -> offset + writeSize;
 
-      fprintf(stderr, "         $After write to File$\n");
-      fprintf(stderr, "         len written %d\n", len_written);
-
-
   		if(len_written == len)
   		{
-        if(masterBlock.content.master.unallocated_front == UNALLOCATED_BLOCK){
-           masterBlock.content.master.unallocated_end = UNALLOCATED_BLOCK;
-           virtual_disk_write_block(MASTER_BLOCK_REFERENCE, &masterBlock);
-        }
+          if(masterBlock.content.master.unallocated_front == UNALLOCATED_BLOCK){
+             masterBlock.content.master.unallocated_end = UNALLOCATED_BLOCK;
+             virtual_disk_write_block(MASTER_BLOCK_REFERENCE, &masterBlock);
+          }
 
-  			currentBlock.next_block = UNALLOCATED_BLOCK;
-  			virtual_disk_write_block(currentBlockRef, &currentBlock);
-  			break;
+    			currentBlock.next_block = UNALLOCATED_BLOCK;
+    			virtual_disk_write_block(currentBlockRef, &currentBlock);
+    			break;
   		}
   		else if(len_written < len)
   		{
+    			if(masterBlock.content.master.unallocated_front != UNALLOCATED_BLOCK)
+    			{
+    				  currentBlock.next_block = masterBlock.content.master.unallocated_front;
+    				  if(virtual_disk_write_block(currentBlockRef, &currentBlock) == 0){
+                  fprintf(stderr, "Block %d wrote back to disk\n", currentBlockRef);
+              }
 
-  			if(masterBlock.content.master.unallocated_front != UNALLOCATED_BLOCK)
-  			{
-  				  fprintf(stderr, "update: currentBlock -> next block to %d  ", masterBlock.content.master.unallocated_front);
-  				  currentBlock.next_block = masterBlock.content.master.unallocated_front;
-  				  if(virtual_disk_write_block(currentBlockRef, &currentBlock) == 0){
-                fprintf(stderr, "Block %d wrote back to disk\n", currentBlockRef);
-            }
+    				  currentBlockRef = oufs_allocate_new_block(&masterBlock, &currentBlock);
+              if(currentBlockRef == UNALLOCATED_BLOCK){
+                return 0;
+              }
+    			}
 
-  				  currentBlockRef = oufs_allocate_new_block(&masterBlock, &currentBlock);
-            if(currentBlockRef == UNALLOCATED_BLOCK){
-              return 0;
-            }
-  			}
+    			if(currentBlockRef == UNALLOCATED_BLOCK){
+              masterBlock.content.master.unallocated_front = masterBlock.content.master.unallocated_end = UNALLOCATED_BLOCK;
+              virtual_disk_write_block(MASTER_BLOCK_REFERENCE, &masterBlock);
+      	 			fprintf(stderr, "File is full\n");
+      	 			return 0;
+    	 		}
 
-  			if(currentBlockRef == UNALLOCATED_BLOCK){
-          masterBlock.content.master.unallocated_front = masterBlock.content.master.unallocated_end = UNALLOCATED_BLOCK;
-          virtual_disk_write_block(MASTER_BLOCK_REFERENCE, &masterBlock);
-  	 			fprintf(stderr, "File is full\n");
-  	 			return 0;
-  	 		}
-
-  	 		used_bytes_in_last_block = 0;
-  	 		curIndex = len_written;
-  	 		free_bytes_in_last_block = DATA_BLOCK_SIZE;
-  	 		virtual_disk_read_block(currentBlockRef, &currentBlock);
-  	 		//fprintf(stderr, "Additional Block added to file\n");
+    	 		used_bytes_in_last_block = 0;
+    	 		curIndex = len_written;
+    	 		free_bytes_in_last_block = DATA_BLOCK_SIZE;
+    	 		virtual_disk_read_block(currentBlockRef, &currentBlock);
   		}
   }
 
@@ -921,7 +892,6 @@ int oufs_fwrite(OUFILE *fp, unsigned char * buf, int len)
   oufs_write_inode_by_reference(fp -> inode_reference, &fileInode);
 
   virtual_disk_write_block(MASTER_BLOCK_REFERENCE, &masterBlock);
-
 
   // Done
   return(len_written);
@@ -967,19 +937,8 @@ int oufs_fread(OUFILE *fp, unsigned char * buf, int len)
   int curIndex = 0;
   BLOCK_REFERENCE nextBlockRef = fileInode.content;
 
-  /*
-  fprintf(stderr, "fileInode.size %d\n", fileInode.size);
-  fprintf(stderr, "currentBlock %d\n", current_block);
-  fprintf(stderr, "byte_offset_in_block %d\n", byte_offset_in_block);
-  fprintf(stderr, "end_of_file %d\n", end_of_file);
-  fprintf(stderr, "len_left %d\n", len_left);
-  fprintf(stderr, "nextBlockRef %d\n", nextBlockRef);
-  fprintf(stderr, "###################\n");
-	*/
-
   while(len_read < end_of_file)
   {
-  		//TODO:  IF FILE SIZE IS ABOVE 1000 logic must be added
   		if(fp -> offset == end_of_file)
   			return 0;
 
@@ -991,8 +950,8 @@ int oufs_fread(OUFILE *fp, unsigned char * buf, int len)
 
   		if((readAmount + len_read) / 1000 > 0)
   		{
-  			fprintf(stderr, "Buffer will be full\n");
-  			readAmount = (readAmount + len_read) % 1000;
+    			fprintf(stderr, "Buffer will be full\n");
+    			readAmount = (readAmount + len_read) % 1000;
   		}
 
   		memcpy(&buf[curIndex], &currentBlock.content.data.data[0], readAmount);
@@ -1002,8 +961,6 @@ int oufs_fread(OUFILE *fp, unsigned char * buf, int len)
   		len_read += readAmount;
 
   		nextBlockRef = currentBlock.next_block;
-
-  		fprintf(stderr, "next block ref %d\n", nextBlockRef);
   }
 
   fp ->offset = len_read;
@@ -1031,7 +988,6 @@ int oufs_fread(OUFILE *fp, unsigned char * buf, int len)
 int oufs_remove(char *cwd, char *path)
 {
 
-  fprintf(stderr, "---------------------Remove method--------------------\n");
   INODE_REFERENCE parentInodeRef;
   INODE_REFERENCE childInodeRef;
   char local_name[MAX_PATH_LENGTH];
@@ -1098,7 +1054,6 @@ int oufs_remove(char *cwd, char *path)
   masterBlock.content.master.unallocated_end = cur;
   fprintf(stderr, "unalocated end %d\n",cur);
 
-  //Free list is now updated
 
   //-------------update inode allocation table
   int byte = childInodeRef / 8;
@@ -1221,8 +1176,6 @@ int oufs_link(char *cwd, char *path_src, char *path_dst)
     return(-4);
   }
 
-
-  // TODO
   return -1;
 }
 

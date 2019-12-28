@@ -32,14 +32,6 @@ int main(int argc, char** argv) {
   }else{
     OUFILE *fp = oufs_fopen(cwd, argv[1], "r");
 
-      /*
-      fprintf(stderr, "###################\n");
-      fprintf(stderr, "File info:\n");
-      fprintf(stderr, "fp -> inode_ref: %d\n", fp -> inode_reference);
-      fprintf(stderr, "fp -> mode %c\n", fp -> mode);
-      fprintf(stderr, "fp -> offset: %d\n", fp -> offset);
-      */
-
     unsigned char buf[BUF_SIZE];
     if(fp != NULL) {
       // Successfully opened the file for reading
